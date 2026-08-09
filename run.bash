@@ -57,6 +57,7 @@ fi
 
 exec podman run --rm --interactive --tty \
   --hostname codex-sandbox \
+  --userns=keep-id \
   --env "TERM=${CONTAINER_TERM}" \
   --env "COLORTERM=${CONTAINER_COLORTERM}" \
   --read-only \
@@ -65,7 +66,7 @@ exec podman run --rm --interactive --tty \
   --cap-drop ALL \
   --security-opt no-new-privileges=true \
   --pids-limit 512 \
-  --mount "type=bind,source=${PROJECT},target=/workspace" \
+  --mount "type=bind,source=${PROJECT},target=/workspace,relabel=private" \
   --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/node" \
   --workdir /workspace \
   "${IMAGE}" \

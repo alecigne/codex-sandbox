@@ -51,6 +51,10 @@ The launcher does not mount the real host home, SSH configuration, environment,
 or Podman API socket. The container is removed when Codex exits; its private home
 volume remains so login state persists.
 
+Podman's `keep-id` user namespace keeps the host and container user IDs aligned.
+The project bind mount uses a private SELinux relabel (`:Z` in short volume
+syntax) so it remains accessible on SELinux-enforcing hosts.
+
 ## Verify host isolation
 
 Create a recognizable file outside the selected project on the host:
