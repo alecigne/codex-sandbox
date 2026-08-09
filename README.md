@@ -105,7 +105,7 @@ that list or download JDKs.
 
 - The container's read-only image.
 
-- A private, persistent `/home/node` Podman volume containing Codex
+- A private, persistent `/home/codex` Podman volume containing Codex
   login and session state, SDKMAN, and installed JDKs.
 
 - Private temporary filesystems at `/tmp` and `/run`.
@@ -113,6 +113,8 @@ that list or download JDKs.
 The launcher does not mount the real host home, SSH configuration,
 environment, or Podman API socket. The container is removed when Codex
 exits; its private home volume remains so login state persists.
+Existing `codex-sandbox-home` volumes are reused at the new home path,
+so this rename requires no state migration.
 
 Podman's `keep-id` user namespace keeps the host and container user
 IDs aligned.  The project bind mount uses a private SELinux relabel
@@ -134,7 +136,7 @@ Launch the sandbox on some project, then ask Codex:
 > accessible.
 
 The file should not exist. The only host directory mount should be the
-selected project at `/workspace`; `/home/node` is a Podman-managed
+selected project at `/workspace`; `/home/codex` is a Podman-managed
 volume, not the host home.
 
 You can also ask Codex to run:

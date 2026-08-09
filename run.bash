@@ -70,7 +70,7 @@ exec podman run --rm --interactive --tty \
   --security-opt no-new-privileges=true \
   --pids-limit 512 \
   --mount "type=bind,source=${PROJECT},target=/workspace,relabel=private" \
-  --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/node" \
+  --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/codex" \
   --workdir /workspace \
   "${IMAGE}" \
   codex --sandbox workspace-write --ask-for-approval on-request "$@"

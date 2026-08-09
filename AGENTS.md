@@ -9,7 +9,7 @@ Container tooling.
 The launcher must preserve two isolation layers:
 
 1. Rootless Podman exposes only the selected project at `/workspace` and a
-   private persistent container home at `/home/node`.
+   private persistent container home at `/home/codex`.
 2. Codex keeps its normal Linux `bubblewrap`/seccomp sandbox enabled in
    `workspace-write` mode with approvals requested on demand.
 
