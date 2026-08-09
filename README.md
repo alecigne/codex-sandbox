@@ -52,9 +52,9 @@ Arguments after `--` are passed to Codex:
 ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
 ```
 
-ShellCheck, ripgrep, and just are included in the image for validating shell
-scripts, searching source trees, and running project commands in selected
-working directories.
+ShellCheck, ripgrep, just, and Elan are included in the image for validating
+shell scripts, searching source trees, running project commands, and managing
+Lean 4 toolchains in selected working directories.
 
 The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a
@@ -122,6 +122,30 @@ Edit `.sdkmanrc` to select the desired version, then activate it with
 `sdk env`. SDKMAN may need network approval when Codex runs commands
 that list or download JDKs.
 
+## Use Lean 4
+
+Elan and its `lean` and `lake` proxies are installed system-wide. Elan stores
+downloaded Lean toolchains in the persistent container home, so they survive
+container replacement and image rebuilds. In a Lean project, `lean` and `lake`
+automatically select the version named by the project's `lean-toolchain` file
+and download it when necessary:
+
+```bash
+lake build
+lean Main.lean
+```
+
+For files outside a project with a `lean-toolchain` file, select a default
+toolchain first:
+
+```bash
+elan default stable
+lean --version
+```
+
+Downloading a toolchain or Lake dependency may require network approval when
+Codex runs the command.
+
 ## What Codex can see
 
 - A writable, ephemeral `/workspace` containing each selected host directory
@@ -130,7 +154,8 @@ that list or download JDKs.
 - The container's read-only image.
 
 - A private, persistent `/home/codex` Podman volume containing Codex
-  login and session state, SDKMAN, and installed JDKs.
+  login and session state, SDKMAN and installed JDKs, and Elan-managed Lean
+  toolchains.
 
 - Private temporary filesystems at `/workspace`, `/tmp`, and `/run`.
 
@@ -185,7 +210,8 @@ podman volume rm codex-sandbox-home
 ```
 
 This permanently deletes the container's Codex credentials and session
-state.  It also deletes SDKMAN and all JDKs installed through it.
+state. It also deletes SDKMAN and all JDKs installed through it, along with
+Elan's downloaded Lean toolchains and configuration.
 
 ## Remaining boundary
 

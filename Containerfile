@@ -13,6 +13,7 @@ RUN apt-get update \
         bubblewrap \
         ca-certificates \
         curl \
+        elan \
         git \
         just \
         ripgrep \
@@ -43,6 +44,7 @@ RUN chmod 0755 /usr/local/bin/container-entrypoint
 
 ENV HOME=/home/codex \
     CODEX_HOME=/home/codex/.codex \
+    ELAN_HOME=/home/codex/.elan \
     SDKMAN_DIR=/home/codex/.sdkman \
     BASH_ENV=/etc/profile.d/sdkman.sh
 
