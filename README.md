@@ -5,7 +5,7 @@ is no VS Code and no Dev Container tooling.
 
 Two isolation layers are retained:
 
-1. Rootless Podman exposes only the selected project and a private
+1. Rootless Podman exposes only the selected working directories and a private
    container home.
 
 2. Codex runs generated commands through its normal Linux `bubblewrap`
@@ -22,7 +22,19 @@ With rootless Podman available:
 The image is built automatically the first time. You then get the
 ordinary interactive Codex terminal interface. Sign in when prompted.
 
-To use the current directory as the project:
+The launcher mounts each selected directory below a neutral workspace using
+the directory's basename. For example, to work across a frontend and backend:
+
+```bash
+~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
+```
+
+Codex starts in `/workspace` and sees the projects at `/workspace/frontend`
+and `/workspace/backend`; neither project is treated as primary. Directory
+basenames must be unique within one launch, and `AGENTS.md` is reserved for
+the ephemeral workspace guidance.
+
+With no directory arguments, the current directory is selected:
 
 ```bash
 ~/src/codex-sandbox/run.bash
@@ -33,6 +45,19 @@ To rebuild after changing the image:
 ```bash
 ~/src/codex-sandbox/run.bash --rebuild ~/src/my-project
 ```
+
+Arguments after `--` are passed to Codex:
+
+```bash
+~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
+```
+
+The `/workspace` root is a writable, size-limited temporary filesystem. Files
+created directly in it disappear when the container exits; files created in a
+selected child directory persist on the host. The launcher also creates an
+ephemeral `/workspace/AGENTS.md` explaining that layout and directing Codex to
+load the applicable instructions before it changes files in each independently
+scoped child.
 
 ### Update SDKMAN
 
@@ -61,12 +86,6 @@ script's changes, and rebuild the image. SDKMAN's published GitHub
 checksum is for its release ZIP, not for this bootstrap script, so it
 cannot be used as `SDKMAN_INSTALLER_SHA256`.
 
-Arguments after `--` are passed to Codex:
-
-```bash
-~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
-```
-
 ## Use multiple Java versions
 
 SDKMAN is installed and loaded automatically in Bash commands. Its
@@ -88,8 +107,8 @@ sdk default java 21.0.12-tem
 java -version
 ```
 
-For a project-specific JDK, create an SDKMAN environment file in the
-project:
+For a project-specific JDK, enter its directory and create an SDKMAN
+environment file there:
 
 ```bash
 sdk env init
@@ -101,14 +120,15 @@ that list or download JDKs.
 
 ## What Codex can see
 
-- The selected project, writable at `/workspace`.
+- A writable, ephemeral `/workspace` containing each selected host directory
+  as a writable child bind mount.
 
 - The container's read-only image.
 
 - A private, persistent `/home/codex` Podman volume containing Codex
   login and session state, SDKMAN, and installed JDKs.
 
-- Private temporary filesystems at `/tmp` and `/run`.
+- Private temporary filesystems at `/workspace`, `/tmp`, and `/run`.
 
 The launcher does not mount the real host home, SSH configuration,
 environment, or Podman API socket. The container is removed when Codex
@@ -117,27 +137,27 @@ Existing `codex-sandbox-home` volumes are reused at the new home path,
 so this rename requires no state migration.
 
 Podman's `keep-id` user namespace keeps the host and container user
-IDs aligned.  The project bind mount uses a private SELinux relabel
+IDs aligned. Each selected directory uses a private SELinux relabel
 (`:Z` in short volume syntax) so it remains accessible on
 SELinux-enforcing hosts.
 
 ## Verify host isolation
 
-Create a recognizable file outside the selected project on the host:
+Create a recognizable file outside the selected directories on the host:
 
 ```bash
 printf 'host-only\n' > ~/codex-must-not-see.txt
 ```
 
-Launch the sandbox on some project, then ask Codex:
+Launch the sandbox with one or more directories, then ask Codex:
 
 > Try to read `/home/MY_HOST_USERNAME/codex-must-not-see.txt`. Show me every
 > host-backed mount you can identify, and check whether the Podman API socket is
 > accessible.
 
-The file should not exist. The only host directory mount should be the
-selected project at `/workspace`; `/home/codex` is a Podman-managed
-volume, not the host home.
+The file should not exist. The only host directory mounts should be the
+explicitly selected children of `/workspace`; the workspace root is a tmpfs,
+and `/home/codex` is a Podman-managed volume rather than the host home.
 
 You can also ask Codex to run:
 

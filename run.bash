@@ -8,6 +8,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
+DIRECTORIES=()
+CODEX_ARGUMENTS=()
 
 if [[ "${CONTAINER_TERM}" == "xterm" ]]; then
   CONTAINER_TERM="xterm-256color"
@@ -16,48 +18,95 @@ fi
 # Print launcher syntax and common examples.
 usage() {
   cat <<'EOF'
-Usage: run.bash [--rebuild] [PROJECT] [-- CODEX_ARGUMENTS...]
+Usage: run.bash [--rebuild] [DIRECTORY ...] [-- CODEX_ARGUMENTS...]
 
-Start an interactive Codex CLI in a container. PROJECT defaults to the current
-directory.
+Start an interactive Codex CLI in a container. Each directory is mounted below
+/workspace using its basename. When none is given, the current directory is
+used.
 
 Examples:
   ~/src/codex-sandbox/run.bash
   ~/src/codex-sandbox/run.bash ~/src/my-project
+  ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
   ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
 EOF
 }
 
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  usage
-  exit 0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --rebuild)
+      REBUILD=true
+      shift
+      ;;
+    --)
+      shift
+      CODEX_ARGUMENTS=("$@")
+      break
+      ;;
+    --*)
+      echo "Unknown launcher option: $1" >&2
+      echo "Place Codex arguments after --." >&2
+      exit 2
+      ;;
+    *)
+      DIRECTORIES+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#DIRECTORIES[@]} -eq 0 ]]; then
+  DIRECTORIES=("${PWD}")
 fi
 
-if [[ "${1:-}" == "--rebuild" ]]; then
-  REBUILD=true
-  shift
-fi
+RESOLVED_DIRECTORIES=()
+WORKSPACE_NAMES=()
 
-if [[ $# -gt 0 && "$1" != "--" ]]; then
-  PROJECT="$1"
-  shift
-else
-  PROJECT="${PWD}"
-fi
+for directory in "${DIRECTORIES[@]}"; do
+  [[ -d "${directory}" ]] || { echo "Directory does not exist: ${directory}" >&2; exit 2; }
 
-if [[ "${1:-}" == "--" ]]; then
-  shift
-fi
+  resolved_directory="$(realpath -- "${directory}")"
+  workspace_name="$(basename -- "${resolved_directory}")"
 
-[[ -d "${PROJECT}" ]] || { echo "Project is not a directory: ${PROJECT}" >&2; exit 2; }
-PROJECT="$(realpath -- "${PROJECT}")"
+  if [[ "${workspace_name}" == "/" || "${workspace_name}" == "." || "${workspace_name}" == ".." ]]; then
+    echo "Cannot derive a workspace name from directory: ${directory}" >&2
+    exit 2
+  fi
+
+  if [[ "${workspace_name}" == "AGENTS.md" ]]; then
+    echo "Reserved workspace directory name: ${workspace_name}" >&2
+    exit 2
+  fi
+
+  for existing_name in "${WORKSPACE_NAMES[@]}"; do
+    if [[ "${workspace_name}" == "${existing_name}" ]]; then
+      echo "Duplicate workspace directory name: ${workspace_name}" >&2
+      exit 2
+    fi
+  done
+
+  RESOLVED_DIRECTORIES+=("${resolved_directory}")
+  WORKSPACE_NAMES+=("${workspace_name}")
+done
+
+DIRECTORY_MOUNTS=()
+for index in "${!RESOLVED_DIRECTORIES[@]}"; do
+  DIRECTORY_MOUNTS+=(
+    --mount
+    "type=bind,source=${RESOLVED_DIRECTORIES[index]},target=/workspace/${WORKSPACE_NAMES[index]},relabel=private"
+  )
+done
 
 # Rebuild explicitly or when no local sandbox image exists.
 if [[ "${REBUILD}" == true ]] || ! podman image exists "${IMAGE}"; then
   podman build --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
 fi
 
-# Mount only the selected project and the container-owned persistent home.
+# Mount only the selected directories and the container-owned persistent home.
 exec podman run --rm --interactive --tty \
   --hostname codex-sandbox \
   --userns=keep-id \
@@ -66,11 +115,13 @@ exec podman run --rm --interactive --tty \
   --read-only \
   --tmpfs /tmp:rw,nosuid,nodev,size=1g \
   --tmpfs /run:rw,nosuid,nodev,size=64m \
+  --tmpfs /workspace:rw,nosuid,nodev,size=1g,mode=1777 \
   --cap-drop ALL \
   --security-opt no-new-privileges=true \
   --pids-limit 512 \
-  --mount "type=bind,source=${PROJECT},target=/workspace,relabel=private" \
+  "${DIRECTORY_MOUNTS[@]}" \
   --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/codex" \
+  --env CODEX_SANDBOX_INIT_WORKSPACE=1 \
   --workdir /workspace \
   "${IMAGE}" \
-  codex --sandbox workspace-write --ask-for-approval on-request "$@"
+  codex --sandbox workspace-write --ask-for-approval on-request "${CODEX_ARGUMENTS[@]}"
