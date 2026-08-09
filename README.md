@@ -52,6 +52,9 @@ Arguments after `--` are passed to Codex:
 ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
 ```
 
+ShellCheck is included in the image for validating shell scripts in selected
+working directories.
+
 The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a
 selected child directory persist on the host. The launcher also creates an
