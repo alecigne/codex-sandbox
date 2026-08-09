@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:24-trixie-slim
 
 ARG CODEX_VERSION=0.147.0
 ARG SDKMAN_VERSION=5.23.0
