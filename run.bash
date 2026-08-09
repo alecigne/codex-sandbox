@@ -13,6 +13,7 @@ if [[ "${CONTAINER_TERM}" == "xterm" ]]; then
   CONTAINER_TERM="xterm-256color"
 fi
 
+# Print launcher syntax and common examples.
 usage() {
   cat <<'EOF'
 Usage: run.bash [--rebuild] [PROJECT] [-- CODEX_ARGUMENTS...]
@@ -51,10 +52,12 @@ fi
 [[ -d "${PROJECT}" ]] || { echo "Project is not a directory: ${PROJECT}" >&2; exit 2; }
 PROJECT="$(realpath -- "${PROJECT}")"
 
+# Rebuild explicitly or when no local sandbox image exists.
 if [[ "${REBUILD}" == true ]] || ! podman image exists "${IMAGE}"; then
   podman build --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
 fi
 
+# Mount only the selected project and the container-owned persistent home.
 exec podman run --rm --interactive --tty \
   --hostname codex-sandbox \
   --userns=keep-id \

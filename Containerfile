@@ -19,6 +19,7 @@ RUN apt-get update \
     && mkdir -p /home/node/.codex /home/node/.sdkman /workspace \
     && chown -R node:node /home/node /workspace
 
+# Install a verified SDKMAN seed for new persistent home volumes.
 RUN export SDKMAN_DIR=/opt/sdkman \
     && curl --fail --show-error --silent --location "https://get.sdkman.io?rcupdate=false" --output /tmp/install-sdkman.sh \
     && printf '%s  %s\n' "${SDKMAN_INSTALLER_SHA256}" /tmp/install-sdkman.sh | sha256sum --check --strict - \
