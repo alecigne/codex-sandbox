@@ -28,7 +28,7 @@ Examples:
   ~/src/codex-sandbox/run.bash
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
-  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.4
+  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
 EOF
 }
 
@@ -103,7 +103,7 @@ done
 
 # Rebuild explicitly or when no local sandbox image exists.
 if [[ "${REBUILD}" == true ]] || ! podman image exists "${IMAGE}"; then
-  podman build --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
+  podman build --pull=newer --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
 fi
 
 # Mount only the selected directories and the container-owned persistent home.
