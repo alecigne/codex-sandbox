@@ -1,6 +1,8 @@
 FROM node:24-trixie-slim
 
 ARG CODEX_VERSION=0.147.0
+ARG UV_VERSION=0.12.5
+ARG UV_INSTALLER_SHA256=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111
 ARG SDKMAN_VERSION=5.23.0
 ARG SDKMAN_NATIVE_VERSION=0.7.34
 ARG SDKMAN_INSTALLER_SHA256=e9ea5bde2e8b2725e69f70ab2fd5b03839d571df31231a726677e0161c8a40c1
@@ -26,6 +28,14 @@ RUN apt-get update \
     && mkdir -p /home/codex/.codex /home/codex/.sdkman /workspace \
     && chown -R codex:codex /home/codex /workspace
 
+# Install uv dynamically for the build architecture from a verified installer.
+RUN curl --fail --show-error --silent --location "https://astral.sh/uv/${UV_VERSION}/install.sh" --output /tmp/install-uv.sh \
+    && printf '%s  %s\n' "${UV_INSTALLER_SHA256}" /tmp/install-uv.sh | sha256sum --check --strict - \
+    && grep --fixed-strings --line-regexp "APP_VERSION=\"${UV_VERSION}\"" /tmp/install-uv.sh \
+    && UV_UNMANAGED_INSTALL=/usr/local/bin sh /tmp/install-uv.sh \
+    && rm /tmp/install-uv.sh \
+    && uv --version
+
 # Install a verified SDKMAN seed for new persistent home volumes.
 RUN export SDKMAN_DIR=/opt/sdkman \
     && curl --fail --show-error --silent --location "https://get.sdkman.io?rcupdate=false" --output /tmp/install-sdkman.sh \
@@ -46,6 +56,8 @@ ENV HOME=/home/codex \
     CODEX_HOME=/home/codex/.codex \
     ELAN_HOME=/home/codex/.elan \
     SDKMAN_DIR=/home/codex/.sdkman \
+    UV_LINK_MODE=copy \
+    PATH=/home/codex/.local/bin:${PATH} \
     BASH_ENV=/etc/profile.d/sdkman.sh
 
 USER codex

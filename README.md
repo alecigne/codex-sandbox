@@ -55,9 +55,9 @@ Arguments after `--` are passed to Codex:
 ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
 ```
 
-ShellCheck, ripgrep, just, and Elan are included in the image for validating
+ShellCheck, ripgrep, just, Elan, and uv are included in the image for validating
 shell scripts, searching source trees, running project commands, and managing
-Lean 4 toolchains in selected working directories.
+Lean 4 and Python toolchains in selected working directories.
 
 The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a
@@ -65,6 +65,43 @@ selected child directory persist on the host. The launcher also creates an
 ephemeral `/workspace/AGENTS.md` explaining that layout and directing Codex to
 load the applicable instructions before it changes files in each independently
 scoped child.
+
+### Update uv
+
+The image installs uv from its versioned, architecture-aware installer. Both
+the uv release and the exact installer SHA-256 are pinned, and the installer
+contains checksums for the release artifacts it selects.
+
+To update uv, download and inspect the intended versioned installer:
+
+```bash
+UV_VERSION=0.12.5
+curl --fail --show-error --silent --location \
+  "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+  --output /tmp/install-uv.sh
+grep '^APP_VERSION=' /tmp/install-uv.sh
+sha256sum /tmp/install-uv.sh
+```
+
+Update `UV_VERSION` and `UV_INSTALLER_SHA256` together in `Containerfile`,
+review the installer changes, and rebuild the image. uv-managed Python versions,
+download caches, and installed tools live below `/home/codex`, so they persist
+across disposable containers and image rebuilds. Project virtual environments
+remain in their selected project directories.
+
+## Use Python with uv
+
+uv reads a project's `pyproject.toml`, `uv.lock`, and `.python-version` files
+and installs a matching Python version when needed:
+
+```bash
+uv sync
+uv run python --version
+```
+
+Python and package downloads may require network approval when Codex runs
+these commands. uv uses copy mode because its persistent cache and project
+virtual environments are on different filesystems.
 
 ### Update SDKMAN
 
@@ -156,9 +193,9 @@ Codex runs the command.
 
 - The container's read-only image.
 
-- A private, persistent `/home/codex` Podman volume containing Codex
-  login and session state, SDKMAN and installed JDKs, and Elan-managed Lean
-  toolchains.
+- A private, persistent `/home/codex` Podman volume containing Codex login and
+  session state, uv-managed Python versions and tools, SDKMAN and installed
+  JDKs, and Elan-managed Lean toolchains.
 
 - Private temporary filesystems at `/workspace`, `/tmp`, and `/run`.
 
@@ -213,8 +250,9 @@ podman volume rm codex-sandbox-home
 ```
 
 This permanently deletes the container's Codex credentials and session
-state. It also deletes SDKMAN and all JDKs installed through it, along with
-Elan's downloaded Lean toolchains and configuration.
+state. It also deletes uv-managed Python versions, tools, and caches; SDKMAN
+and all JDKs installed through it; and Elan's downloaded Lean toolchains and
+configuration.
 
 ## Remaining boundary
 
