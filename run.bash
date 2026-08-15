@@ -6,6 +6,7 @@ IMAGE="codex-sandbox:local"
 SANDBOX_HOME_VOLUME="codex-sandbox-home"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD=false
+REBUILD_ONLY=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
 DIRECTORIES=()
@@ -18,13 +19,16 @@ fi
 # Print launcher syntax and common examples.
 usage() {
   cat <<'EOF'
-Usage: run.bash [--rebuild] [DIRECTORY ...] [-- CODEX_ARGUMENTS...]
+Usage:
+  run.bash [--rebuild] [DIRECTORY ...] [-- CODEX_ARGUMENTS...]
+  run.bash --rebuild-only
 
 Start an interactive Codex CLI in a container. Each directory is mounted below
 /workspace using its basename. When none is given, the current directory is
-used.
+used. Use --rebuild-only to rebuild the image without launching Codex.
 
 Examples:
+  ~/src/codex-sandbox/run.bash --rebuild-only
   ~/src/codex-sandbox/run.bash
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
@@ -40,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --rebuild)
       REBUILD=true
+      shift
+      ;;
+    --rebuild-only)
+      REBUILD_ONLY=true
       shift
       ;;
     --)
@@ -58,6 +66,20 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+build_image() {
+  podman build --pull=newer --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
+}
+
+if [[ "${REBUILD_ONLY}" == true ]]; then
+  if [[ "${REBUILD}" == true || ${#DIRECTORIES[@]} -ne 0 || ${#CODEX_ARGUMENTS[@]} -ne 0 ]]; then
+    echo "--rebuild-only cannot be combined with --rebuild, directories, or Codex arguments." >&2
+    exit 2
+  fi
+
+  build_image
+  exit 0
+fi
 
 if [[ ${#DIRECTORIES[@]} -eq 0 ]]; then
   DIRECTORIES=("${PWD}")
@@ -103,7 +125,7 @@ done
 
 # Rebuild explicitly or when no local sandbox image exists.
 if [[ "${REBUILD}" == true ]] || ! podman image exists "${IMAGE}"; then
-  podman build --pull=newer --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
+  build_image
 fi
 
 # Mount only the selected directories and the container-owned persistent home.

@@ -40,14 +40,18 @@ With no directory arguments, the current directory is selected:
 ~/src/codex-sandbox/run.bash
 ```
 
-To rebuild after changing the image or refresh its Node and Debian base:
+To rebuild after changing the image or refresh its Node and Debian base without
+launching Codex:
 
 ```bash
-~/src/codex-sandbox/run.bash --rebuild ~/src/my-project
+~/src/codex-sandbox/run.bash --rebuild-only
+~/src/codex-sandbox/run.bash ~/src/my-project
 ```
 
 Rebuilds check the registry for a newer `node:24-trixie-slim` base before
 building, so updated Node and Debian packages are incorporated when available.
+To rebuild and launch immediately, use `--rebuild` with the normal directory
+arguments.
 
 Arguments after `--` are passed to Codex:
 
