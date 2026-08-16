@@ -131,6 +131,7 @@ fi
 
 # Mount only the selected directories and the container-owned persistent home.
 exec podman run --rm --interactive --tty \
+  --init \
   --hostname codex-sandbox \
   --userns=keep-id \
   --env "TERM=${CONTAINER_TERM}" \

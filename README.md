@@ -206,6 +206,9 @@ exits; its private home volume remains so login state persists.
 Existing `codex-sandbox-home` volumes are reused at the new home path,
 so this rename requires no state migration.
 
+Podman's minimal init process runs as PID 1 to forward signals and reap
+orphaned child processes created during the Codex session.
+
 Podman's `keep-id` user namespace keeps the host and container user
 IDs aligned. Each selected directory uses a private SELinux relabel
 (`:Z` in short volume syntax) so it remains accessible on
