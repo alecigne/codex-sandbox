@@ -24,12 +24,11 @@ Usage:
   run.bash --rebuild-only
 
 Start an interactive Codex CLI in a container. Each directory is mounted below
-/workspace using its basename. When none is given, the current directory is
-used. Use --rebuild-only to rebuild the image without launching Codex.
+/workspace using its basename. At least one directory is required. Use
+--rebuild-only to rebuild the image without launching Codex.
 
 Examples:
   ~/src/codex-sandbox/run.bash --rebuild-only
-  ~/src/codex-sandbox/run.bash
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
   ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
@@ -82,7 +81,9 @@ if [[ "${REBUILD_ONLY}" == true ]]; then
 fi
 
 if [[ ${#DIRECTORIES[@]} -eq 0 ]]; then
-  DIRECTORIES=("${PWD}")
+  echo "At least one workspace directory must be specified." >&2
+  echo "Example: $0 ~/src/my-project" >&2
+  exit 2
 fi
 
 RESOLVED_DIRECTORIES=()

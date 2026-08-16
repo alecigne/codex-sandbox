@@ -34,11 +34,8 @@ and `/workspace/backend`; neither project is treated as primary. Directory
 basenames must be unique within one launch, and `AGENTS.md` is reserved for
 the ephemeral workspace guidance.
 
-With no directory arguments, the current directory is selected:
-
-```bash
-~/src/codex-sandbox/run.bash
-```
+At least one directory argument is required. This keeps the selected host
+workspace explicit.
 
 To rebuild after changing the image or refresh its Node and Debian base without
 launching Codex:
