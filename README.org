@@ -38,8 +38,20 @@ basename. For example:
 #+end_src
 
 This creates ~/workspace/frontend~ and ~/workspace/backend~; neither
-directory is treated as primary. At least one directory is required,
-and their basenames must be unique within a launch.
+directory is treated as primary. Selected directory basenames must be
+unique within a launch.
+
+To launch with an empty, disposable workspace and no host working
+directory mounted, use the explicit ~--empty-workspace~ option:
+
+#+begin_src bash
+  ~/src/codex-sandbox/run.bash --empty-workspace
+#+end_src
+
+The launcher never infers a working directory from the current
+directory. Calling it without either ~--empty-workspace~ or at least
+one directory is an error. Arguments after ~--~ can also be used in
+empty-workspace mode.
 
 Arguments after ~--~ are passed to Codex:
 
@@ -73,6 +85,7 @@ For example:
 #+begin_src bash
   just check                         # Run static validation
   just build                         # Rebuild the image without launching
+  just run --empty-workspace         # Launch without host workspace mounts
   just run ~/src/my-project          # Launch Codex
   just containers                    # List running sandbox containers
   just shell                         # Open Bash in the running container
@@ -305,7 +318,7 @@ when Codex runs them.
 |-------------------------------------+-----------------------------+-----------------------------|
 | Location                            | Backing                     | Lifetime                    |
 |-------------------------------------+-----------------------------+-----------------------------|
-| Selected ~/workspace/NAME~ children | Explicit host bind mounts   | Persists on the host        |
+| Selected ~/workspace/NAME~ children | Optional host bind mounts   | Persists on the host        |
 | ~/workspace~ root                   | 1 GiB private tmpfs         | Removed with the container  |
 | ~/home/codex~                       | ~codex-sandbox-home~ volume | Persists across containers  |
 | ~/tmp~                              | 1 GiB private tmpfs         | Removed with the container  |
@@ -314,8 +327,9 @@ when Codex runs them.
 |-------------------------------------+-----------------------------+-----------------------------|
 
 Files written directly to ~/workspace~ disappear when the container
-exits.  Only changes inside the selected child directories persist on
-the host.
+exits. Only changes inside selected child directories persist on the
+host. In ~--empty-workspace~ mode, no host working directory is mounted
+and every file created below ~/workspace~ is disposable.
 
 The home volume contains Codex login and session state, uv-managed
 Python state, SDKMAN and installed JDKs, and Elan-managed Lean
@@ -332,8 +346,8 @@ The outer Podman container:
 
 - Uses a read-only root filesystem and a 512-process limit.
 
-- Mounts only the selected host directories and its private home
-  volume.
+- Mounts only explicitly selected host directories, if any, and its
+  private home volume.
 
 - Does not mount the host home, SSH configuration, environment, or
   Podman API socket.

@@ -7,6 +7,7 @@ SANDBOX_HOME_VOLUME="codex-sandbox-home"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REBUILD=false
 REBUILD_ONLY=false
+EMPTY_WORKSPACE=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
 DIRECTORIES=()
@@ -20,15 +21,18 @@ fi
 usage() {
   cat <<'EOF'
 Usage:
-  run.bash [--rebuild] [DIRECTORY ...] [-- CODEX_ARGUMENTS...]
+  run.bash [--rebuild] DIRECTORY... [-- CODEX_ARGUMENTS...]
+  run.bash [--rebuild] --empty-workspace [-- CODEX_ARGUMENTS...]
   run.bash --rebuild-only
 
 Start an interactive Codex CLI in a container. Each directory is mounted below
-/workspace using its basename. At least one directory is required. Use
+/workspace using its basename. Use --empty-workspace to mount no host working
+directories; omitting both directories and that flag is an error. Use
 --rebuild-only to rebuild the image without launching Codex.
 
 Examples:
   ~/src/codex-sandbox/run.bash --rebuild-only
+  ~/src/codex-sandbox/run.bash --empty-workspace
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
   ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
@@ -47,6 +51,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --rebuild-only)
       REBUILD_ONLY=true
+      shift
+      ;;
+    --empty-workspace)
+      EMPTY_WORKSPACE=true
       shift
       ;;
     --)
@@ -71,8 +79,8 @@ build_image() {
 }
 
 if [[ "${REBUILD_ONLY}" == true ]]; then
-  if [[ "${REBUILD}" == true || ${#DIRECTORIES[@]} -ne 0 || ${#CODEX_ARGUMENTS[@]} -ne 0 ]]; then
-    echo "--rebuild-only cannot be combined with --rebuild, directories, or Codex arguments." >&2
+  if [[ "${REBUILD}" == true || "${EMPTY_WORKSPACE}" == true || ${#DIRECTORIES[@]} -ne 0 || ${#CODEX_ARGUMENTS[@]} -ne 0 ]]; then
+    echo "--rebuild-only cannot be combined with --rebuild, --empty-workspace, directories, or Codex arguments." >&2
     exit 2
   fi
 
@@ -80,9 +88,14 @@ if [[ "${REBUILD_ONLY}" == true ]]; then
   exit 0
 fi
 
-if [[ ${#DIRECTORIES[@]} -eq 0 ]]; then
+if [[ "${EMPTY_WORKSPACE}" == true && ${#DIRECTORIES[@]} -ne 0 ]]; then
+  echo "--empty-workspace cannot be combined with workspace directories." >&2
+  exit 2
+fi
+
+if [[ "${EMPTY_WORKSPACE}" == false && ${#DIRECTORIES[@]} -eq 0 ]]; then
   echo "At least one workspace directory must be specified." >&2
-  echo "Example: $0 ~/src/my-project" >&2
+  echo "Use --empty-workspace to launch without mounting a host working directory." >&2
   exit 2
 fi
 
