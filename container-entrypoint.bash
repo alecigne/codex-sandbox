@@ -4,13 +4,12 @@ set -euo pipefail
 
 SDKMAN_SEED=/opt/sdkman
 SDKMAN_CONFIG="${SDKMAN_DIR}/etc/config"
-GLOBAL_AGENTS_FILE=/usr/local/share/codex-sandbox/AGENTS.md
+HOME_TEMPLATE=/usr/local/share/codex-sandbox/home
 
-# Keep the global guidance image-managed while Codex state persists in a volume.
-mkdir -p "${CODEX_HOME}"
-ln --symbolic --force --no-target-directory \
-  "${GLOBAL_AGENTS_FILE}" \
-  "${CODEX_HOME}/AGENTS.md"
+# Refresh image-managed home files without removing runtime-owned state.
+cp --archive --no-preserve=ownership --remove-destination \
+  "${HOME_TEMPLATE}/." \
+  "${HOME}/"
 
 # Initialize SDKMAN once without replacing installed JDKs on later launches.
 if [[ ! -s "${SDKMAN_DIR}/bin/sdkman-init.sh" ]]; then

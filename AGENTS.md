@@ -24,11 +24,11 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   dependencies, and SDKMAN.
 - `run.bash` builds the image when needed and launches the disposable Podman
   container.
-- `container-entrypoint.bash` links image-managed global Codex guidance, seeds
-  SDKMAN into the persistent home volume, and then executes the requested
-  command.
-- `global-AGENTS.md` documents the container layout and available tools for
-  every Codex session.
+- `container-entrypoint.bash` overlays image-managed home files, seeds SDKMAN
+  into the persistent home volume, and then executes the requested command.
+- `home/` is the sparse image-managed container home template. Its global Codex
+  guidance documents the container layout and available tools for every
+  session.
 - `sdkman-profile.sh` loads SDKMAN for Bash commands through `BASH_ENV`.
 - `README.md` is the user-facing setup, usage, isolation, and cleanup guide.
 

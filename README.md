@@ -65,14 +65,20 @@ The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a
 selected child directory persist on the host.
 
-The image supplies global Codex guidance describing this layout, the isolation
-boundary, and the installed tools. At startup, the entrypoint refreshes
-`/home/codex/.codex/AGENTS.md` as a symlink to the image-owned
-`/usr/local/share/codex-sandbox/AGENTS.md`. The symlink remains in the persistent
-home volume while its target is updated with the image, so `--rebuild-only`
-updates the guidance without creating a synthetic project instruction file in
-`/workspace`. Project instructions in each selected child remain independently
-scoped and take precedence where they apply.
+The repository's sparse `home/` tree contains image-managed files for the
+container home. At startup, the entrypoint overlays that template onto
+`/home/codex`: matching paths are refreshed from the image, while runtime-owned
+files absent from the template remain untouched. This lets `--rebuild-only`
+update global Codex guidance and add future managed configuration without
+discarding credentials, sessions, or downloaded toolchains from the persistent
+home volume. Removing a path from `home/` does not delete its persistent copy;
+that requires an explicit migration or recreating the home volume.
+
+The current template supplies `/home/codex/.codex/AGENTS.md`, which describes
+the workspace layout, isolation boundary, and installed tools. It replaces the
+synthetic project instruction file previously created in `/workspace`. Project
+instructions in each selected child remain independently scoped and take
+precedence where they apply.
 
 ### Update uv
 
