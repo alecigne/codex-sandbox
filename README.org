@@ -1,0 +1,372 @@
+#+title: Codex sandbox
+
+A small CLI launcher for running Codex inside a rootless Podman
+container.
+
+It keeps the container boundary and Codex's own Linux sandbox enabled:
+Podman exposes only explicitly selected working directories, and Codex
+runs generated commands through ~bubblewrap~ and seccomp in
+~workspace-write~ mode.
+
+* Requirements
+
+- Rootless Podman
+- Bash and standard GNU command-line tools
+- Unprivileged user namespaces on the host
+- ~just~ on the host if you want to use the repository recipes
+- ShellCheck on the host if you want to run ~just check~
+
+Tools used inside the sandbox are installed in the image; host
+installations are not exposed to the container.
+
+* Usage
+
+** Launch Codex
+
+Pass one or more host working directories to the launcher:
+
+#+begin_src bash
+  ~/src/codex-sandbox/run.bash ~/src/my-project
+#+end_src
+
+The image is built automatically the first time. Codex starts in
+~/workspace~, with each selected directory mounted below it using its
+basename. For example:
+
+#+begin_src bash
+  ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
+#+end_src
+
+This creates ~/workspace/frontend~ and ~/workspace/backend~; neither
+directory is treated as primary. At least one directory is required,
+and their basenames must be unique within a launch.
+
+Arguments after ~--~ are passed to Codex:
+
+#+begin_src bash
+  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
+#+end_src
+
+Use ~--rebuild~ to rebuild the image before launching:
+
+#+begin_src bash
+  ~/src/codex-sandbox/run.bash --rebuild ~/src/my-project
+#+end_src
+
+** Just recipes
+
+The ~Justfile~ wraps the common repository workflows. Run ~just~ at
+any time to list the available recipes.
+
+|---------------------+---------------------------------------------------------------------------|
+| Recipe              | Action                                                                    |
+|---------------------+---------------------------------------------------------------------------|
+| ~check~             | Run Bash syntax checks, ShellCheck, launcher help, and ~git diff --check~ |
+| ~build~             | Rebuild the image without launching Codex                                 |
+| ~run ARGS...~       | Forward arguments to ~run.bash~ and launch Codex                          |
+| ~containers~        | List running containers created from the sandbox image                    |
+| ~shell [CONTAINER]~ | Open a login Bash shell in a running sandbox container                    |
+|---------------------+---------------------------------------------------------------------------|
+
+For example:
+
+#+begin_src bash
+  just check                         # Run static validation
+  just build                         # Rebuild the image without launching
+  just run ~/src/my-project          # Launch Codex
+  just containers                    # List running sandbox containers
+  just shell                         # Open Bash in the running container
+#+end_src
+
+Run ~just shell~ from another terminal while Codex is running. If
+several sandbox containers are active, select one explicitly:
+
+#+begin_src bash
+  just shell CONTAINER_ID_OR_NAME
+#+end_src
+
+Arguments to ~just run~ are forwarded to ~run.bash~, including the
+separator for Codex arguments:
+
+#+begin_src bash
+  just run ~/src/my-project -- --model gpt-5.6-sol
+#+end_src
+
+* Image construction
+
+The image is built from ~node:24-trixie-slim~ and tagged
+~codex-sandbox:local~. The ~Containerfile~:
+
+1. Renames the base image's unprivileged UID/GID 1000 account to
+   ~codex~.
+2. Installs the Debian-packaged system and development tools.
+3. Installs pinned Codex CLI and ast-grep releases through npm.
+4. Installs uv from a versioned, checksum-verified installer.
+5. Creates a checksum-verified SDKMAN seed for new home volumes.
+6. Copies the repository's custom home and entrypoint into the image.
+7. Switches permanently to the unprivileged ~codex~ user.
+
+The resulting container root filesystem is read-only at
+runtime. Writable locations are mounted explicitly by ~run.bash~.
+
+To build or refresh the image without launching Codex:
+
+#+begin_src bash
+  just build
+  # or
+  ./run.bash --rebuild-only
+#+end_src
+
+Every rebuild uses Podman's ~--pull=newer~ policy. This checks for a
+newer ~node:24-trixie-slim~ base so current Node and Debian package
+updates are incorporated when available.
+
+* Custom home
+
+The repository's sparse ~home/~ directory is the image-managed portion
+of ~/home/codex~. It provides a natural place for global Codex
+instructions and, later, other deliberate configuration such as custom
+skills:
+
+#+begin_example
+home/
+└── .codex/
+    └── AGENTS.md
+#+end_example
+
+During the image build, this tree is copied to
+~/usr/local/share/codex-sandbox/home~. At every container start, the
+entrypoint overlays it onto ~/home/codex~. Matching paths are
+refreshed from the image; files absent from the repository template
+are left untouched.
+
+This separates two kinds of home data:
+
+- Repository-managed configuration comes from ~home/~ and changes
+  through an image rebuild.
+
+- Runtime state such as Codex credentials, sessions, caches, and
+  downloaded toolchains remains in the persistent ~codex-sandbox-home~
+  volume.
+
+The current ~home/.codex/AGENTS.md~ explains the workspace layout and
+installed tools to every Codex session. Project-level ~AGENTS.md~
+files remain scoped to their own selected directories and take
+precedence where they apply.
+
+Removing a path from ~home/~ does not remove a copy already present in
+the persistent volume. Deletion requires an explicit migration or
+recreation of the volume.
+
+* Tools
+
+The image includes the following user-facing tools:
+
+|------------------+------------------------------------------+----------------------------|
+| Tool             | Purpose                                  | Installation               |
+|------------------+------------------------------------------+----------------------------|
+| Codex CLI        | Interactive coding agent                 | Pinned npm package         |
+| Node.js and npm  | JavaScript runtime and packages          | Base image                 |
+| ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
+| ripgrep (~rg~)   | Fast textual search                      | Debian package             |
+| jq               | JSON queries and transformations         | Debian package             |
+| Git              | Version control                          | Debian package             |
+| ShellCheck       | Shell script analysis                    | Debian package             |
+| just             | Repository command runner                | Debian package             |
+| uv               | Python versions, environments, and tools | Verified installer         |
+| SDKMAN           | Java versions and SDKs                   | Verified seed installation |
+| Elan             | Lean toolchain manager                   | Debian package             |
+| curl, zip, unzip | Downloads and archive handling           | Debian packages            |
+|------------------+------------------------------------------+----------------------------|
+
+~bubblewrap~ is also installed as a runtime dependency of Codex's
+Linux sandbox.
+
+** Python with uv
+
+uv reads a project's ~pyproject.toml~, ~uv.lock~, and
+~.python-version~ files and installs a matching Python version when
+needed:
+
+#+begin_src bash
+  uv sync
+  uv run python --version
+#+end_src
+
+Python versions, installed tools, and download caches live below
+~/home/codex~, so they survive container and image
+replacement. Project virtual environments remain in their selected
+working directories. ~UV_LINK_MODE~ is set to ~copy~ because the
+persistent cache and project environments are on different
+filesystems.
+
+Python and package downloads may require network approval when Codex
+runs these commands.
+
+*** Updating uv
+
+The image pins both the uv release and the exact SHA-256 of its
+architecture-aware installer. To prepare an update:
+
+#+begin_src bash
+  UV_VERSION=0.12.5
+  curl --fail --show-error --silent --location \
+    "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+    --output /tmp/install-uv.sh
+  grep '^APP_VERSION=' /tmp/install-uv.sh
+  sha256sum /tmp/install-uv.sh
+#+end_src
+
+Update ~UV_VERSION~ and ~UV_INSTALLER_SHA256~ together in
+~Containerfile~, review the installer changes, and rebuild the image.
+
+** Java with SDKMAN
+
+SDKMAN is loaded automatically for Bash commands. Its files and
+downloaded SDKs live in the persistent home volume, so installed JDKs
+survive container and image replacement:
+
+#+begin_src bash
+  sdk list java
+  sdk install java 21.0.12-tem
+  sdk install java 17.0.20-tem
+  sdk default java 21.0.12-tem
+  java -version
+#+end_src
+
+For a project-specific JDK, enter the project directory and create an
+SDKMAN environment file:
+
+#+begin_src bash
+  sdk env init
+#+end_src
+
+Edit ~.sdkmanrc~ to select the desired version, then activate it with
+~sdk env~. Listing or downloading SDKs may require network approval
+when Codex runs the command.
+
+SDKMAN's automatic startup connectivity check is disabled because
+Codex commands do not have network access by default. The entrypoint
+enforces this setting for both new and existing home volumes.
+
+*** Updating SDKMAN
+
+The SDKMAN bootstrap URL is mutable. The image therefore pins the
+bootstrap script's exact SHA-256 along with the CLI and native
+component versions. A changed script fails the build instead of
+silently installing different code.
+
+Confirm the intended release on the SDKMAN [[https://github.com/sdkman/sdkman-cli/releases][releases page]], then inspect
+and hash the bootstrap script:
+
+#+begin_src bash
+  curl --fail --show-error --silent --location \
+    "https://get.sdkman.io?rcupdate=false" \
+    --output /tmp/install-sdkman.sh
+  grep '^export SDKMAN_\(VERSION\|NATIVE_VERSION\)=' /tmp/install-sdkman.sh
+  sha256sum /tmp/install-sdkman.sh
+#+end_src
+
+Update ~SDKMAN_VERSION~, ~SDKMAN_NATIVE_VERSION~, and
+~SDKMAN_INSTALLER_SHA256~ together in ~Containerfile~, review the
+script, and rebuild. SDKMAN's published GitHub checksum covers its
+release ZIP, not the bootstrap script, so it cannot be used as
+~SDKMAN_INSTALLER_SHA256~.
+
+The image seed initializes SDKMAN only when its files are absent from
+the persistent home. Rebuilding does not replace an existing SDKMAN
+installation or its installed JDKs.
+
+** Lean 4 with Elan
+
+Elan and its ~lean~ and ~lake~ proxies are installed
+system-wide. Downloaded Lean toolchains live in the persistent home
+volume. Inside a Lean project, ~lean~ and ~lake~ select the version
+from ~lean-toolchain~ and download it when necessary:
+
+#+begin_src bash
+  lake build
+  lean Main.lean
+#+end_src
+
+Outside a project with a ~lean-toolchain~ file, select a default
+first:
+
+#+begin_src bash
+  elan default stable
+  lean --version
+#+end_src
+
+Toolchain and Lake dependency downloads may require network approval
+when Codex runs them.
+
+* Filesystem and persistence
+
+|-------------------------------------+-----------------------------+-----------------------------|
+| Location                            | Backing                     | Lifetime                    |
+|-------------------------------------+-----------------------------+-----------------------------|
+| Selected ~/workspace/NAME~ children | Explicit host bind mounts   | Persists on the host        |
+| ~/workspace~ root                   | 1 GiB private tmpfs         | Removed with the container  |
+| ~/home/codex~                       | ~codex-sandbox-home~ volume | Persists across containers  |
+| ~/tmp~                              | 1 GiB private tmpfs         | Removed with the container  |
+| ~/run~                              | 64 MiB private tmpfs        | Removed with the container  |
+| Container root                      | Read-only image             | Replaced with the container |
+|-------------------------------------+-----------------------------+-----------------------------|
+
+Files written directly to ~/workspace~ disappear when the container
+exits.  Only changes inside the selected child directories persist on
+the host.
+
+The home volume contains Codex login and session state, uv-managed
+Python state, SDKMAN and installed JDKs, and Elan-managed Lean
+toolchains. The container itself is launched with ~--rm~; only this
+volume and selected host directories outlive it.
+
+* Isolation boundary
+
+The outer Podman container:
+
+- Runs rootless with ~--userns=keep-id~.
+
+- Drops all Linux capabilities and enables ~no-new-privileges~.
+
+- Uses a read-only root filesystem and a 512-process limit.
+
+- Mounts only the selected host directories and its private home
+  volume.
+
+- Does not mount the host home, SSH configuration, environment, or
+  Podman API socket.
+
+- Uses private SELinux relabeling for selected working directories.
+
+Podman's minimal init process runs as PID 1 to forward signals and
+reap orphaned children. Within this boundary, Codex retains its normal
+~bubblewrap~/seccomp sandbox with ~workspace-write~ access and
+approval on demand.
+
+If commands fail with a ~bwrap~ or namespace error, do not disable the
+Codex sandbox. The host's rootless Podman configuration must support
+unprivileged user namespaces for both isolation layers to work.
+
+** Network boundary
+
+Codex needs network access to communicate with OpenAI, so the outer
+container has Podman's normal outbound network access. Commands
+spawned by Codex remain subject to its ~workspace-write~ network
+restrictions and approval policy. No outer egress allowlist is
+currently configured.
+
+* Remove persistent state
+
+After every sandbox container has stopped, the persistent home can be
+removed:
+
+#+begin_src bash
+  podman volume rm codex-sandbox-home
+#+end_src
+
+This permanently deletes Codex credentials and sessions, uv-managed
+Python versions, tools and caches, SDKMAN and its installed JDKs, and
+Elan's downloaded Lean toolchains and configuration. It does not
+affect selected host working directories.

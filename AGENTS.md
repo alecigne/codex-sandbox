@@ -32,7 +32,7 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   guidance documents the container layout and available tools for every
   session.
 - `sdkman-profile.sh` loads SDKMAN for Bash commands through `BASH_ENV`.
-- `README.md` is the user-facing setup, usage, isolation, and cleanup guide.
+- `README.org` is the user-facing setup, usage, isolation, and cleanup guide.
 
 ## Design constraints
 
@@ -56,7 +56,7 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 
 ## Working on changes
 
-- Update `README.md` whenever behavior, prerequisites, CLI syntax, persistence,
+- Update `README.org` whenever behavior, prerequisites, CLI syntax, persistence,
   mounts, or the security boundary changes.
 - Never print, inspect, copy, or delete the persistent home volume's credentials
   unless the user explicitly asks. Removing `codex-sandbox-home` is destructive.
@@ -78,5 +78,5 @@ podman build --tag codex-sandbox:local --file Containerfile .
 
 `shellcheck` and Podman may not be installed everywhere; report skipped checks
 rather than weakening the implementation. For changes to container isolation,
-also verify the expectations documented under **Verify host isolation** in
-`README.md`.
+inspect the resulting `podman run` arguments and perform runtime validation when
+Podman is available.
