@@ -55,6 +55,22 @@ Arguments after `--` are passed to Codex:
 ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
 ```
 
+## Repository commands
+
+The `Justfile` provides short commands for common repository workflows:
+
+```bash
+just                 # List available commands
+just check           # Run static validation
+just build           # Rebuild the image
+just run ~/src/my-project
+just containers      # List running sandbox containers
+just shell           # Open Bash in the running sandbox
+```
+
+If several sandbox containers are running, select one explicitly with
+`just shell CONTAINER_ID_OR_NAME`.
+
 ShellCheck, ripgrep, ast-grep, jq, just, Elan, and uv are included in the image
 for validating shell scripts, performing textual and syntax-aware source
 searches, transforming JSON, running project commands, and managing Lean 4 and

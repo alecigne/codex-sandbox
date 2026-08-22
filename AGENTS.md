@@ -24,6 +24,8 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   dependencies, and SDKMAN.
 - `run.bash` builds the image when needed and launches the disposable Podman
   container.
+- `Justfile` provides common build, validation, launch, and container-shell
+  commands.
 - `container-entrypoint.bash` overlays image-managed home files, seeds SDKMAN
   into the persistent home volume, and then executes the requested command.
 - `home/` is the sparse image-managed container home template. Its global Codex
