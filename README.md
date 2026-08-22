@@ -56,9 +56,11 @@ Arguments after `--` are passed to Codex:
 ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
 ```
 
-ShellCheck, ripgrep, just, Elan, and uv are included in the image for validating
-shell scripts, searching source trees, running project commands, and managing
-Lean 4 and Python toolchains in selected working directories.
+ShellCheck, ripgrep, ast-grep, jq, just, Elan, and uv are included in the image
+for validating shell scripts, performing textual and syntax-aware source
+searches, transforming JSON, running project commands, and managing Lean 4 and
+Python toolchains in selected working directories. ast-grep is pinned through
+the `AST_GREP_VERSION` build argument.
 
 The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a

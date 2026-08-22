@@ -1,6 +1,7 @@
 FROM node:24-trixie-slim
 
-ARG CODEX_VERSION=0.147.0
+ARG CODEX_VERSION=0.149.0
+ARG AST_GREP_VERSION=0.45.0
 ARG UV_VERSION=0.12.5
 ARG UV_INSTALLER_SHA256=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111
 ARG SDKMAN_VERSION=5.23.0
@@ -18,12 +19,15 @@ RUN apt-get update \
         elan \
         git \
         just \
+        jq \
         ripgrep \
         shellcheck \
         unzip \
         zip \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install --global "@openai/codex@${CODEX_VERSION}" \
+    && npm install --global \
+        "@ast-grep/cli@${AST_GREP_VERSION}" \
+        "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
     && mkdir -p /home/codex/.codex /home/codex/.sdkman /workspace \
     && chown -R codex:codex /home/codex /workspace
