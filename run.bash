@@ -100,11 +100,6 @@ for directory in "${DIRECTORIES[@]}"; do
     exit 2
   fi
 
-  if [[ "${workspace_name}" == "AGENTS.md" ]]; then
-    echo "Reserved workspace directory name: ${workspace_name}" >&2
-    exit 2
-  fi
-
   for existing_name in "${WORKSPACE_NAMES[@]}"; do
     if [[ "${workspace_name}" == "${existing_name}" ]]; then
       echo "Duplicate workspace directory name: ${workspace_name}" >&2
@@ -145,7 +140,6 @@ exec podman run --rm --interactive --tty \
   --pids-limit 512 \
   "${DIRECTORY_MOUNTS[@]}" \
   --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/codex" \
-  --env CODEX_SANDBOX_INIT_WORKSPACE=1 \
   --workdir /workspace \
   "${IMAGE}" \
   codex --sandbox workspace-write --ask-for-approval on-request "${CODEX_ARGUMENTS[@]}"

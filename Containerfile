@@ -52,6 +52,7 @@ RUN export SDKMAN_DIR=/opt/sdkman \
     && chown -R codex:codex /opt/sdkman
 
 COPY sdkman-profile.sh /etc/profile.d/sdkman.sh
+COPY global-AGENTS.md /usr/local/share/codex-sandbox/AGENTS.md
 COPY container-entrypoint.bash /usr/local/bin/container-entrypoint
 
 RUN chmod 0755 /usr/local/bin/container-entrypoint

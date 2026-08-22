@@ -31,8 +31,7 @@ the directory's basename. For example, to work across a frontend and backend:
 
 Codex starts in `/workspace` and sees the projects at `/workspace/frontend`
 and `/workspace/backend`; neither project is treated as primary. Directory
-basenames must be unique within one launch, and `AGENTS.md` is reserved for
-the ephemeral workspace guidance.
+basenames must be unique within one launch.
 
 At least one directory argument is required. This keeps the selected host
 workspace explicit.
@@ -64,10 +63,16 @@ the `AST_GREP_VERSION` build argument.
 
 The `/workspace` root is a writable, size-limited temporary filesystem. Files
 created directly in it disappear when the container exits; files created in a
-selected child directory persist on the host. The launcher also creates an
-ephemeral `/workspace/AGENTS.md` explaining that layout and directing Codex to
-load the applicable instructions before it changes files in each independently
-scoped child.
+selected child directory persist on the host.
+
+The image supplies global Codex guidance describing this layout, the isolation
+boundary, and the installed tools. At startup, the entrypoint refreshes
+`/home/codex/.codex/AGENTS.md` as a symlink to the image-owned
+`/usr/local/share/codex-sandbox/AGENTS.md`. The symlink remains in the persistent
+home volume while its target is updated with the image, so `--rebuild-only`
+updates the guidance without creating a synthetic project instruction file in
+`/workspace`. Project instructions in each selected child remain independently
+scoped and take precedence where they apply.
 
 ### Update uv
 
