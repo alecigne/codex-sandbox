@@ -13,7 +13,6 @@ RUN groupmod --new-name codex node && usermod --login codex --home /home/codex -
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        bubblewrap \
         ca-certificates \
         curl \
         elan \
