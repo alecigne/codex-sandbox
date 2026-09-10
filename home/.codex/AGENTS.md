@@ -24,6 +24,7 @@ and size limits. The host home and Podman socket are not mounted.
   rewrites in supported languages.
 - Use `jq` to query and transform JSON.
 - Git, ShellCheck, `just`, Node.js, and npm are installed.
+- Go and tools installed with `go install` are available on `PATH`.
 - Use uv to manage Python versions, environments, and tools.
 - Use SDKMAN to manage Java versions and Elan to manage Lean toolchains.
 - Commands that download dependencies or toolchains may require network

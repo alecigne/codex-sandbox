@@ -115,9 +115,11 @@ The image is built from ~node:24-trixie-slim~ and tagged
 2. Installs the Debian-packaged system and development tools.
 3. Installs pinned Codex CLI and ast-grep releases through npm.
 4. Installs uv from a versioned, checksum-verified installer.
-5. Creates a checksum-verified SDKMAN seed for new home volumes.
-6. Copies the repository's custom home and entrypoint into the image.
-7. Switches permanently to the unprivileged ~codex~ user.
+5. Installs the checksum-verified official Go toolchain for the image
+   architecture.
+6. Creates a checksum-verified SDKMAN seed for new home volumes.
+7. Copies the repository's custom home and entrypoint into the image.
+8. Switches permanently to the unprivileged ~codex~ user.
 
 The resulting container root filesystem is read-only at
 runtime. Writable locations are mounted explicitly by ~run.bash~.
@@ -187,6 +189,7 @@ The image includes the following user-facing tools:
 | ShellCheck       | Shell script analysis                    | Debian package             |
 | just             | Repository command runner                | Debian package             |
 | uv               | Python versions, environments, and tools | Verified installer         |
+| Go               | Go compiler and development tools        | Verified official archive  |
 | SDKMAN           | Java versions and SDKs                   | Verified seed installation |
 | Elan             | Lean toolchain manager                   | Debian package             |
 | curl, zip, unzip | Downloads and archive handling           | Debian packages            |
@@ -232,6 +235,39 @@ architecture-aware installer. To prepare an update:
 
 Update ~UV_VERSION~ and ~UV_INSTALLER_SHA256~ together in
 ~Containerfile~, review the installer changes, and rebuild the image.
+
+** Go
+
+The official Go toolchain is installed system-wide at ~/usr/local/go~.
+~GOPATH~ is ~/home/codex/go~, and its ~bin~ directory is on ~PATH~, so
+tools installed with ~go install~ are immediately available and survive
+container replacement:
+
+#+begin_src bash
+  go version
+  go test ./...
+  go install golang.org/x/tools/gopls@latest
+#+end_src
+
+Module, build, and installed-tool data live below ~/home/codex~ in the
+persistent volume. Project source and vendor directories remain in the
+selected working directory. Module and tool downloads may require network
+approval when Codex runs these commands.
+
+*** Updating Go
+
+The image pins the Go version and the official SHA-256 checksums for both
+supported Linux architectures. Obtain the current release metadata from Go's
+official download endpoint:
+
+#+begin_src bash
+  curl --fail --show-error --silent --location \
+    "https://go.dev/dl/?mode=json" \
+    | jq '.[0] | {version, files: [.files[] | select(.os == "linux" and (.arch == "amd64" or .arch == "arm64")) | {arch, sha256}]}'
+#+end_src
+
+Update ~GO_VERSION~, ~GO_LINUX_AMD64_SHA256~, and
+~GO_LINUX_ARM64_SHA256~ together in ~Containerfile~, then rebuild the image.
 
 ** Java with SDKMAN
 
@@ -332,9 +368,9 @@ host. In ~--empty-workspace~ mode, no host working directory is mounted
 and every file created below ~/workspace~ is disposable.
 
 The home volume contains Codex login and session state, uv-managed
-Python state, SDKMAN and installed JDKs, and Elan-managed Lean
-toolchains. The container itself is launched with ~--rm~; only this
-volume and selected host directories outlive it.
+Python state, Go modules, build data and installed tools, SDKMAN and installed
+JDKs, and Elan-managed Lean toolchains. The container itself is launched with
+~--rm~; only this volume and selected host directories outlive it.
 
 * Isolation boundary
 
@@ -381,6 +417,6 @@ removed:
 #+end_src
 
 This permanently deletes Codex credentials and sessions, uv-managed
-Python versions, tools and caches, SDKMAN and its installed JDKs, and
-Elan's downloaded Lean toolchains and configuration. It does not
-affect selected host working directories.
+Python versions, tools and caches, Go modules, build data and installed tools,
+SDKMAN and its installed JDKs, and Elan's downloaded Lean toolchains and
+configuration. It does not affect selected host working directories.
