@@ -69,7 +69,7 @@ RUN export SDKMAN_DIR=/opt/sdkman \
     && sed -i 's/^sdkman_healthcheck_enable=.*/sdkman_healthcheck_enable=false/' /opt/sdkman/etc/config \
     && chown -R codex:codex /opt/sdkman
 
-COPY sdkman-profile.sh /etc/profile.d/sdkman.sh
+COPY toolchain-profile.sh /etc/profile.d/codex-toolchains.sh
 COPY home/ /usr/local/share/codex-sandbox/home/
 COPY container-entrypoint.bash /usr/local/bin/container-entrypoint
 
@@ -81,8 +81,10 @@ ENV HOME=/home/codex \
     SDKMAN_DIR=/home/codex/.sdkman \
     UV_LINK_MODE=copy \
     GOPATH=/home/codex/go \
+    GOCACHE=/tmp/codex-go-cache/build \
+    GOMODCACHE=/tmp/codex-go-cache/mod \
     PATH=/usr/local/go/bin:/home/codex/go/bin:/home/codex/.local/bin:${PATH} \
-    BASH_ENV=/etc/profile.d/sdkman.sh
+    BASH_ENV=/etc/profile.d/codex-toolchains.sh
 
 USER codex
 WORKDIR /workspace

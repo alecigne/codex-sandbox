@@ -31,7 +31,8 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 - `home/` is the sparse image-managed container home template. Its global Codex
   guidance documents the container layout and available tools for every
   session.
-- `sdkman-profile.sh` loads SDKMAN for Bash commands through `BASH_ENV`.
+- `toolchain-profile.sh` restores image-managed tool paths and loads SDKMAN for
+  Bash commands through `BASH_ENV`.
 - `README.org` is the user-facing setup, usage, isolation, and cleanup guide.
 
 ## Design constraints
@@ -70,8 +71,8 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 Run the checks relevant to the edited files:
 
 ```bash
-bash -n run.bash container-entrypoint.bash sdkman-profile.sh
-shellcheck run.bash container-entrypoint.bash sdkman-profile.sh
+bash -n run.bash container-entrypoint.bash toolchain-profile.sh
+shellcheck run.bash container-entrypoint.bash toolchain-profile.sh
 podman build --tag codex-sandbox:local --file Containerfile .
 ./run.bash --help
 ```

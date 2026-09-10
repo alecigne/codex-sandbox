@@ -6,8 +6,8 @@ default:
 
 # Run static checks that do not require Podman.
 check:
-    bash -n run.bash container-entrypoint.bash sdkman-profile.sh
-    shellcheck run.bash container-entrypoint.bash sdkman-profile.sh
+    bash -n run.bash container-entrypoint.bash toolchain-profile.sh
+    shellcheck run.bash container-entrypoint.bash toolchain-profile.sh
     ./run.bash --help >/dev/null
     git diff --check
 

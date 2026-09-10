@@ -249,10 +249,11 @@ container replacement:
   go install golang.org/x/tools/gopls@latest
 #+end_src
 
-Module, build, and installed-tool data live below ~/home/codex~ in the
-persistent volume. Project source and vendor directories remain in the
-selected working directory. Module and tool downloads may require network
-approval when Codex runs these commands.
+Module and build caches live below ~/tmp/codex-go-cache~ and are removed with
+the container. Installed tools live below ~/home/codex/go~ in the persistent
+volume. Project source and vendor directories remain in the selected working
+directory. Downloads may require network approval, and persistent tool
+installation may require filesystem approval when Codex runs these commands.
 
 *** Updating Go
 
@@ -367,10 +368,10 @@ exits. Only changes inside selected child directories persist on the
 host. In ~--empty-workspace~ mode, no host working directory is mounted
 and every file created below ~/workspace~ is disposable.
 
-The home volume contains Codex login and session state, uv-managed
-Python state, Go modules, build data and installed tools, SDKMAN and installed
-JDKs, and Elan-managed Lean toolchains. The container itself is launched with
-~--rm~; only this volume and selected host directories outlive it.
+The home volume contains Codex login and session state, uv-managed Python
+state, Go-installed tools, SDKMAN and installed JDKs, and Elan-managed Lean
+toolchains. The container itself is launched with ~--rm~; only this volume and
+selected host directories outlive it.
 
 * Isolation boundary
 
@@ -416,7 +417,7 @@ removed:
   podman volume rm codex-sandbox-home
 #+end_src
 
-This permanently deletes Codex credentials and sessions, uv-managed
-Python versions, tools and caches, Go modules, build data and installed tools,
-SDKMAN and its installed JDKs, and Elan's downloaded Lean toolchains and
-configuration. It does not affect selected host working directories.
+This permanently deletes Codex credentials and sessions, uv-managed Python
+versions, tools and caches, Go-installed tools, SDKMAN and its installed JDKs,
+and Elan's downloaded Lean toolchains and configuration. It does not affect
+selected host working directories.
