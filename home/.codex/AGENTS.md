@@ -23,11 +23,15 @@ and size limits. The host home and Podman socket are not mounted.
 - Use `rg` for textual search and `ast-grep` for syntax-aware search and
   rewrites in supported languages.
 - Use `jq` to query and transform JSON.
-- Git, ShellCheck, `just`, Node.js, and npm are installed.
+- Git, ShellCheck, `just`, Node.js, and npm are installed. npm's cache is
+  disposable under `/tmp`; persistent user-global packages install below
+  `/home/codex/.local` and may require approval.
 - Go and tools installed with `go install` are available on `PATH`. Go build
   and module caches are disposable under `/tmp`; persistent tool installation
   may require approval.
-- Use uv to manage Python versions, environments, and tools.
+- Use uv to manage Python versions, environments, and tools. Its cache is
+  disposable under `/tmp`; persistent Python and tool installation may require
+  approval.
 - Use SDKMAN to manage Java versions and Elan to manage Lean toolchains.
 - Commands that download dependencies or toolchains may require network
   approval.

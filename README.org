@@ -160,9 +160,8 @@ This separates two kinds of home data:
 - Repository-managed configuration comes from ~home/~ and changes
   through an image rebuild.
 
-- Runtime state such as Codex credentials, sessions, caches, and
-  downloaded toolchains remains in the persistent ~codex-sandbox-home~
-  volume.
+- Runtime state such as Codex credentials, sessions, user-installed tools, and
+  downloaded toolchains remains in the persistent ~codex-sandbox-home~ volume.
 
 The current ~home/.codex/AGENTS.md~ explains the workspace layout and
 installed tools to every Codex session. Project-level ~AGENTS.md~
@@ -198,6 +197,22 @@ The image includes the following user-facing tools:
 ~bubblewrap~ is also installed as a runtime dependency of Codex's
 Linux sandbox.
 
+** Node.js and npm
+
+Node.js and npm come from the base image. Project dependencies remain in each
+selected project's ~node_modules~ directory. At runtime, global npm packages
+install below ~/home/codex/.local~, whose ~bin~ directory is on ~PATH~:
+
+#+begin_src bash
+  npm install
+  npm install --global npm-check-updates
+#+end_src
+
+The npm download cache lives below ~/tmp/codex-npm-cache~ and is removed with
+the container. Package downloads may require network approval, and persistent
+global installation may require filesystem approval when Codex runs these
+commands. Image-managed global packages remain installed system-wide.
+
 ** Python with uv
 
 uv reads a project's ~pyproject.toml~, ~uv.lock~, and
@@ -209,15 +224,16 @@ needed:
   uv run python --version
 #+end_src
 
-Python versions, installed tools, and download caches live below
-~/home/codex~, so they survive container and image
-replacement. Project virtual environments remain in their selected
-working directories. ~UV_LINK_MODE~ is set to ~copy~ because the
-persistent cache and project environments are on different
+Python versions and installed tools live below ~/home/codex~, so they survive
+container and image replacement. The download cache lives below
+~/tmp/codex-uv-cache~ and is removed with the container. Project virtual
+environments remain in their selected working directories. ~UV_LINK_MODE~ is
+set to ~copy~ because the cache and project environments are on different
 filesystems.
 
-Python and package downloads may require network approval when Codex
-runs these commands.
+Python and package downloads may require network approval, and persistent
+Python or tool installation may require filesystem approval when Codex runs
+these commands.
 
 *** Updating uv
 
@@ -368,10 +384,11 @@ exits. Only changes inside selected child directories persist on the
 host. In ~--empty-workspace~ mode, no host working directory is mounted
 and every file created below ~/workspace~ is disposable.
 
-The home volume contains Codex login and session state, uv-managed Python
-state, Go-installed tools, SDKMAN and installed JDKs, and Elan-managed Lean
-toolchains. The container itself is launched with ~--rm~; only this volume and
-selected host directories outlive it.
+The home volume contains Codex login and session state, user-global npm
+packages, uv-managed Python versions and tools, Go-installed tools, SDKMAN and
+installed JDKs, and Elan-managed Lean toolchains. The container itself is
+launched with ~--rm~; only this volume and selected host directories outlive
+it.
 
 * Isolation boundary
 
@@ -417,7 +434,7 @@ removed:
   podman volume rm codex-sandbox-home
 #+end_src
 
-This permanently deletes Codex credentials and sessions, uv-managed Python
-versions, tools and caches, Go-installed tools, SDKMAN and its installed JDKs,
-and Elan's downloaded Lean toolchains and configuration. It does not affect
-selected host working directories.
+This permanently deletes Codex credentials and sessions, user-global npm
+packages, uv-managed Python versions and tools, Go-installed tools, SDKMAN and
+its installed JDKs, and Elan's downloaded Lean toolchains and configuration.
+It does not affect selected host working directories.
