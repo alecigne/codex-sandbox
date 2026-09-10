@@ -13,7 +13,7 @@ check:
 
 # Build or refresh the sandbox image.
 build:
-    ./run.bash --rebuild-only
+    ./run.bash --build
 
 # Launch Codex; pass directories and Codex arguments as usual.
 run *args:

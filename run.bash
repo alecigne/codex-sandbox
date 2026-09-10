@@ -5,8 +5,6 @@ set -euo pipefail
 IMAGE="codex-sandbox:local"
 SANDBOX_HOME_VOLUME="codex-sandbox-home"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REBUILD=false
-REBUILD_ONLY=false
 EMPTY_WORKSPACE=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
@@ -21,17 +19,17 @@ fi
 usage() {
   cat <<'EOF'
 Usage:
-  run.bash [--rebuild] DIRECTORY... [-- CODEX_ARGUMENTS...]
-  run.bash [--rebuild] --empty-workspace [-- CODEX_ARGUMENTS...]
-  run.bash --rebuild-only
+  run.bash --build
+  run.bash DIRECTORY... [-- CODEX_ARGUMENTS...]
+  run.bash --empty-workspace [-- CODEX_ARGUMENTS...]
 
 Start an interactive Codex CLI in a container. Each directory is mounted below
 /workspace using its basename. Use --empty-workspace to mount no host working
 directories; omitting both directories and that flag is an error. Use
---rebuild-only to rebuild the image without launching Codex.
+--build to build the image without launching Codex.
 
 Examples:
-  ~/src/codex-sandbox/run.bash --rebuild-only
+  ~/src/codex-sandbox/run.bash --build
   ~/src/codex-sandbox/run.bash --empty-workspace
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
@@ -39,19 +37,29 @@ Examples:
 EOF
 }
 
+build_image() {
+  podman build --pull=newer --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
+}
+
+if [[ "${1-}" == "--build" ]]; then
+  if [[ $# -ne 1 ]]; then
+    echo "--build does not accept arguments." >&2
+    exit 2
+  fi
+
+  build_image
+  exit 0
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h)
       usage
       exit 0
       ;;
-    --rebuild)
-      REBUILD=true
-      shift
-      ;;
-    --rebuild-only)
-      REBUILD_ONLY=true
-      shift
+    --build)
+      echo "--build must be used without arguments." >&2
+      exit 2
       ;;
     --empty-workspace)
       EMPTY_WORKSPACE=true
@@ -73,20 +81,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-build_image() {
-  podman build --pull=newer --tag "${IMAGE}" --file "${SCRIPT_DIR}/Containerfile" "${SCRIPT_DIR}"
-}
-
-if [[ "${REBUILD_ONLY}" == true ]]; then
-  if [[ "${REBUILD}" == true || "${EMPTY_WORKSPACE}" == true || ${#DIRECTORIES[@]} -ne 0 || ${#CODEX_ARGUMENTS[@]} -ne 0 ]]; then
-    echo "--rebuild-only cannot be combined with --rebuild, --empty-workspace, directories, or Codex arguments." >&2
-    exit 2
-  fi
-
-  build_image
-  exit 0
-fi
 
 if [[ "${EMPTY_WORKSPACE}" == true && ${#DIRECTORIES[@]} -ne 0 ]]; then
   echo "--empty-workspace cannot be combined with workspace directories." >&2
@@ -132,8 +126,8 @@ for index in "${!RESOLVED_DIRECTORIES[@]}"; do
   )
 done
 
-# Rebuild explicitly or when no local sandbox image exists.
-if [[ "${REBUILD}" == true ]] || ! podman image exists "${IMAGE}"; then
+# Build automatically when no local sandbox image exists.
+if ! podman image exists "${IMAGE}"; then
   build_image
 fi
 
