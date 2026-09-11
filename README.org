@@ -1,7 +1,6 @@
 #+title: Codex sandbox
 
-A small CLI launcher for running Codex inside a rootless Podman
-container.
+A development environment for Codex CLI, powered by rootless Podman.
 
 It keeps the container boundary and Codex's own Linux sandbox enabled:
 Podman exposes only explicitly selected working directories, and Codex
