@@ -11,6 +11,13 @@ check:
     ./run.bash --help >/dev/null
     git diff --check
 
+# Configure this clone to sign commits with the project owner's GPG key.
+configure-signing:
+    git config --local gpg.format openpgp
+    git config --local user.signingkey 477F40FC229A19209161500BD935EEC81422C918
+    git config --local commit.gpgsign true
+    @echo "Configured commit signing for this clone."
+
 # Render README.org as a styled PDF through Pandoc and Typst.
 pdf:
     mkdir -p build

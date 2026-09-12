@@ -82,6 +82,7 @@ any time to list the available recipes.
 | Recipe              | Action                                                                    |
 |---------------------+---------------------------------------------------------------------------|
 | ~check~             | Run Bash syntax checks, ShellCheck, launcher help, and ~git diff --check~ |
+| ~configure-signing~ | Configure this clone to sign commits with the owner's GPG key             |
 | ~pdf~               | Render this README as a styled PDF through Pandoc and Typst               |
 | ~build~             | Build or refresh the image without launching Codex                        |
 | ~run ARGS...~       | Forward arguments to ~run.bash~ and launch Codex                          |
@@ -93,6 +94,7 @@ For example:
 
 #+begin_src bash
   just check                         # Run static validation
+  just configure-signing             # Configure signed commits in this clone
   just pdf                           # Render docs/codex-sandbox.pdf
   just build                         # Build or refresh without launching
   just run --empty-workspace         # Launch without host workspace mounts
@@ -100,6 +102,13 @@ For example:
   just containers                    # List running sandbox containers
   just shell                         # Open Bash in the running container
 #+end_src
+
+The ~configure-signing~ recipe writes only to this clone's local Git
+configuration. It selects the project owner's OpenPGP key
+~477F40FC229A19209161500BD935EEC81422C918~ and enables automatic commit
+signing. The corresponding secret key and GnuPG must already be available on
+the trusted host; the recipe does not modify global Git configuration or copy
+any key material.
 
 Run ~just shell~ from another terminal while Codex is running. If
 several sandbox containers are active, select one explicitly:
