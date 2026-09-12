@@ -28,6 +28,14 @@ Pass one or more host working directories to the launcher:
   ~/src/codex-sandbox/run.bash ~/src/my-project
 #+end_src
 
+For a shorter command, create a symlink from a directory on the host's
+~PATH~:
+
+#+begin_src bash
+  ln --symbolic ~/src/codex-sandbox/run.bash ~/bin/sbx
+  sbx ~/src/my-project
+#+end_src
+
 The image is built automatically the first time. Codex starts in
 ~/workspace~, with each selected directory mounted below it using its
 basename. For example:

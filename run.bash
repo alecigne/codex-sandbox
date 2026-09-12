@@ -4,7 +4,8 @@ set -euo pipefail
 
 IMAGE="codex-sandbox:local"
 SANDBOX_HOME_VOLUME="codex-sandbox-home"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="$(realpath -- "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
 EMPTY_WORKSPACE=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
