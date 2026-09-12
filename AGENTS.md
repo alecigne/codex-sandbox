@@ -29,8 +29,9 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 - `container-entrypoint.bash` overlays image-managed home files, seeds SDKMAN
   into the persistent home volume, and then executes the requested command.
 - `home/` is the sparse image-managed container home template. Its global Codex
-  guidance documents the container layout and available tools for every
-  session.
+  guidance and personal skills are refreshed for every session.
+- `docs/` contains the Pandoc defaults, project-local Typst theme, and tracked
+  PDF generated from `README.org`.
 - `toolchain-profile.sh` restores image-managed tool paths and loads SDKMAN for
   Bash commands through `BASH_ENV`.
 - `README.org` is the user-facing setup, usage, isolation, and cleanup guide.
@@ -59,6 +60,10 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 
 - Update `README.org` whenever behavior, prerequisites, CLI syntax, persistence,
   mounts, or the security boundary changes.
+- Treat `README.org` as the documentation source of truth. After changing it,
+  run `just pdf` and include the refreshed `docs/codex-sandbox.pdf`.
+- Keep this repository's PDF build self-contained and reproducible from
+  repository-owned files.
 - Never print, inspect, copy, or delete the persistent home volume's credentials
   unless the user explicitly asks. Removing `codex-sandbox-home` is destructive.
 - Do not assume Podman or nested user namespaces are available in the current

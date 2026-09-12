@@ -1,0 +1,10 @@
+from: org
+to: typst
+standalone: true
+table-of-contents: true
+toc-depth: 2
+metadata:
+  lang: en
+variables:
+  papersize: a4
+  template: ../docs/theme.typ

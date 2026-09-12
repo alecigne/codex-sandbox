@@ -11,6 +11,12 @@ check:
     ./run.bash --help >/dev/null
     git diff --check
 
+# Render README.org as a styled PDF through Pandoc and Typst.
+pdf:
+    mkdir -p build
+    pandoc --defaults=docs/pdf.yaml --output=build/codex-sandbox.typ README.org
+    typst compile --root=. build/codex-sandbox.typ docs/codex-sandbox.pdf
+
 # Build or refresh the sandbox image.
 build:
     ./run.bash --build

@@ -23,6 +23,9 @@ and size limits. The host home and Podman socket are not mounted.
 - Use `rg` for textual search and `ast-grep` for syntax-aware search and
   rewrites in supported languages.
 - Use `jq` to query and transform JSON.
+- Use Pandoc to convert Markdown into standalone HTML, DOCX, EPUB, and other
+  document formats. Typst is installed as a fast PDF typesetting engine and can
+  be used directly or through Pandoc with `--pdf-engine=typst`.
 - Git, ShellCheck, `just`, Node.js, and npm are installed. npm's cache is
   disposable under `/tmp`; persistent user-global packages install below
   `/home/codex/.local` and may require approval.
@@ -35,3 +38,8 @@ and size limits. The host home and Podman socket are not mounted.
 - Use SDKMAN to manage Java versions and Elan to manage Lean toolchains.
 - Commands that download dependencies or toolchains may require network
   approval.
+
+## Documentation publishing
+
+- When asked to create or refresh a polished project PDF, use the
+  `publish-project-pdf` skill when available.

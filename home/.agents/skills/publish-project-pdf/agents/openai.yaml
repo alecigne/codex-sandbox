@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish Project PDF"
+  short_description: "Create polished, reproducible project PDFs"
+  default_prompt: "Use $publish-project-pdf to create or refresh a polished PDF from this repository's documentation."

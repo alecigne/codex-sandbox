@@ -7,6 +7,9 @@ ARG UV_INSTALLER_SHA256=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a
 ARG GO_VERSION=1.27.1
 ARG GO_LINUX_AMD64_SHA256=63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445
 ARG GO_LINUX_ARM64_SHA256=3450b45a3f9ee8568792736a5c5e70a1f2e9b36c35a8f74958c03e51d7d92bec
+ARG TYPST_VERSION=0.15.1
+ARG TYPST_LINUX_AMD64_SHA256=a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c
+ARG TYPST_LINUX_ARM64_SHA256=5aa8d74a3d906e60ea12a66ac2f37f8eef1b14cbad7182a745e393a10c23dcee
 ARG SDKMAN_VERSION=5.23.0
 ARG SDKMAN_NATIVE_VERSION=0.7.34
 ARG SDKMAN_INSTALLER_SHA256=e9ea5bde2e8b2725e69f70ab2fd5b03839d571df31231a726677e0161c8a40c1
@@ -22,9 +25,11 @@ RUN apt-get update \
         git \
         just \
         jq \
+        pandoc \
         ripgrep \
         shellcheck \
         unzip \
+        xz-utils \
         zip \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global \
@@ -57,6 +62,29 @@ RUN architecture="$(dpkg --print-architecture)" \
     && tar --extract --gzip --file "/tmp/${go_archive}" --directory /usr/local \
     && rm "/tmp/${go_archive}" \
     && /usr/local/go/bin/go version
+
+# Install the official Typst CLI for the build architecture.
+RUN architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+        amd64) \
+            typst_target="x86_64-unknown-linux-musl"; \
+            typst_sha256="${TYPST_LINUX_AMD64_SHA256}" \
+            ;; \
+        arm64) \
+            typst_target="aarch64-unknown-linux-musl"; \
+            typst_sha256="${TYPST_LINUX_ARM64_SHA256}" \
+            ;; \
+        *) echo "Unsupported Typst architecture: ${architecture}" >&2; exit 1 ;; \
+    esac \
+    && typst_archive="typst-${typst_target}.tar.xz" \
+    && curl --fail --show-error --silent --location \
+        "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/${typst_archive}" \
+        --output "/tmp/${typst_archive}" \
+    && printf '%s  %s\n' "${typst_sha256}" "/tmp/${typst_archive}" | sha256sum --check --strict - \
+    && tar --extract --xz --file "/tmp/${typst_archive}" --directory /usr/local/bin \
+        --strip-components=1 "typst-${typst_target}/typst" \
+    && rm "/tmp/${typst_archive}" \
+    && typst --version
 
 # Install a verified SDKMAN seed for new persistent home volumes.
 RUN export SDKMAN_DIR=/opt/sdkman \
