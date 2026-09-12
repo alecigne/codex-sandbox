@@ -1,11 +1,20 @@
 #+title: Codex sandbox
 
-A personal development environment for Codex CLI, powered by rootless Podman.
+A personal development environment for Codex CLI, powered by rootless
+Podman.
 
 It keeps the container boundary and Codex's own Linux sandbox enabled:
 Podman exposes only explicitly selected working directories, and Codex
 runs generated commands through ~bubblewrap~ and seccomp in
 ~workspace-write~ mode.
+
+This README is also available [[file:docs/codex-sandbox.pdf][as a PDF]].
+
+* AI-assisted development
+
+Development is assisted by Codex CLI under close human direction. Each
+new version of ~codex-sandbox~ is developed from within the current
+version, so the project also exercises the environment it builds.
 
 * Requirements
 
@@ -103,13 +112,6 @@ For example:
   just shell                         # Open Bash in the running container
 #+end_src
 
-The ~configure-signing~ recipe writes only to this clone's local Git
-configuration. It selects the project owner's OpenPGP key
-~477F40FC229A19209161500BD935EEC81422C918~ and enables automatic commit
-signing. The corresponding secret key and GnuPG must already be available on
-the trusted host; the recipe does not modify global Git configuration or copy
-any key material.
-
 Run ~just shell~ from another terminal while Codex is running. If
 several sandbox containers are active, select one explicitly:
 
@@ -123,21 +125,6 @@ separator for Codex arguments:
 #+begin_src bash
   just run ~/src/my-project -- --model gpt-5.6-sol
 #+end_src
-
-** Documentation PDF
-
-~README.org~ is the source of truth for the project documentation.
-The ~pdf~ recipe reads it directly with Pandoc, writes an inspectable
-Typst intermediate file, and compiles the final PDF:
-
-#+begin_src bash
-  just pdf
-#+end_src
-
-The final ~docs/codex-sandbox.pdf~ is tracked so it is immediately
-available from the repository. The inspectable Typst intermediate is
-written below the ignored ~build/~ directory. Conversion settings and
-the local, dependency-free visual theme also live below ~docs/~.
 
 * Image construction
 
@@ -175,21 +162,7 @@ updates are incorporated when available.
 * Custom home
 
 The repository's sparse ~home/~ directory is the image-managed portion
-of ~/home/codex~. It provides a natural place for global Codex
-instructions and deliberate personal skills:
-
-#+begin_example
-home/
-├── .agents/
-│   └── skills/
-│       └── publish-project-pdf/
-│           ├── SKILL.md
-│           ├── agents/openai.yaml
-│           ├── assets/theme.typ
-│           └── references/visual-review.md
-└── .codex/
-    └── AGENTS.md
-#+end_example
+of ~/home/codex~.
 
 During the image build, this tree is copied to
 ~/usr/local/share/codex-sandbox/home~. At every container start, the
@@ -206,22 +179,47 @@ This separates two kinds of home data:
   tools, and downloaded toolchains remains in the persistent
   ~codex-sandbox-home~ volume.
 
-The current ~home/.codex/AGENTS.md~ explains the workspace layout and
-installed tools to every Codex session and routes polished PDF requests
-to the personal skill. Project-level ~AGENTS.md~ files remain scoped to
-their own selected directories and take precedence where they apply.
-
-The ~publish-project-pdf~ skill supplies the on-demand workflow for
-creating or refining polished PDFs from repository documentation. Its
-theme is a starter asset: Codex copies and adapts it only when a project
-does not already have a theme. The resulting repository owns its local
-copy and never imports the skill at build time, so its documentation
-remains reproducible outside this sandbox and does not change silently
-when the image is updated.
-
 Removing a path from ~home/~ does not remove a copy already present in
 the persistent volume. Deletion requires an explicit migration or
 recreation of the volume.
+
+** Global instructions and skills
+
+The custom home provides a natural place for global Codex instructions
+and deliberate personal skills:
+
+#+begin_example
+  home/
+  ├── .agents/
+  │   └── skills/
+  │       └── publish-project-pdf/
+  │           ├── SKILL.md
+  │           ├── agents/openai.yaml
+  │           ├── assets/theme.typ
+  │           └── references/visual-review.md
+  └── .codex/
+      └── AGENTS.md
+#+end_example
+
+This makes ~codex-sandbox~ not only a development environment, but
+also a convenient Git-backed set of instructions for Codex.
+
+The current ~home/.codex/AGENTS.md~ explains the workspace layout and
+installed tools to every Codex session and routes polished PDF
+requests to the personal skill. Project-level ~AGENTS.md~ files remain
+scoped to their own selected directories and take precedence where
+they apply.
+
+The ~publish-project-pdf~ skill supplies the on-demand workflow for
+creating or refining polished PDFs from repository documentation. Its
+theme is a starter asset: Codex copies and adapts it only when a
+project does not already have a theme. The resulting repository owns
+its local copy and never imports the skill at build time, so its
+documentation remains reproducible outside this sandbox and does not
+change silently when the image is updated.
+
+The [[file:docs/codex-sandbox.pdf][PDF documentation]] for ~codex-sandbox~ was produced using this very
+skill.
 
 * Tools
 
@@ -250,42 +248,6 @@ The image includes the following user-facing tools:
 ~bubblewrap~ is also installed as a runtime dependency of Codex's
 Linux sandbox.
 
-Pandoc can produce standalone HTML, DOCX, EPUB, and other document
-formats directly from Markdown. Typst provides PDF typesetting without
-a LaTeX installation. For example:
-
-#+begin_src bash
-  pandoc report.md --pdf-engine=typst --output=report.pdf
-#+end_src
-
-Typst can also compile ~.typ~ sources directly:
-
-#+begin_src bash
-  typst compile report.typ report.pdf
-#+end_src
-
-Typst Universe packages are downloaded on demand and cached in the
-persistent home volume. Their first use may require network approval.
-Prefer project-local templates when a build must work offline or use
-only repository-reviewed inputs.
-
-*** Updating Typst
-
-The image pins the Typst version and official GitHub release SHA-256
-digests for both supported Linux architectures. Query the intended
-release metadata before an update:
-
-#+begin_src bash
-  TYPST_VERSION=0.15.1
-  curl --fail --show-error --silent --location \
-    "https://api.github.com/repos/typst/typst/releases/tags/v${TYPST_VERSION}" \
-    | jq -r '.assets[] | select(.name | test("(aarch64|x86_64)-unknown-linux-musl\\.tar\\.xz$")) | [.name, .digest] | @tsv'
-#+end_src
-
-Update ~TYPST_VERSION~, ~TYPST_LINUX_AMD64_SHA256~, and
-~TYPST_LINUX_ARM64_SHA256~ together in ~Containerfile~, then rebuild
-the image.
-
 ** Node.js and npm
 
 Node.js and npm come from the base image. Project dependencies remain
@@ -306,7 +268,7 @@ remain installed system-wide.
 
 ** Python with uv
 
-uv reads a project's ~pyproject.toml~, ~uv.lock~, and
+~uv~ reads a project's ~pyproject.toml~, ~uv.lock~, and
 ~.python-version~ files and installs a matching Python version when
 needed:
 
@@ -458,6 +420,44 @@ first:
 
 Toolchain and Lake dependency downloads may require network approval
 when Codex runs them.
+
+** Publishing
+
+Pandoc can produce standalone HTML, DOCX, EPUB, and other document
+formats directly from Markdown. Typst provides PDF typesetting without
+a LaTeX installation. For example:
+
+#+begin_src bash
+  pandoc report.md --pdf-engine=typst --output=report.pdf
+#+end_src
+
+Typst can also compile ~.typ~ sources directly:
+
+#+begin_src bash
+  typst compile report.typ report.pdf
+#+end_src
+
+Typst Universe packages are downloaded on demand and cached in the
+persistent home volume. Their first use may require network approval.
+Prefer project-local templates when a build must work offline or use
+only repository-reviewed inputs.
+
+*** Updating Typst
+
+The image pins the Typst version and official GitHub release SHA-256
+digests for both supported Linux architectures. Query the intended
+release metadata before an update:
+
+#+begin_src bash
+  TYPST_VERSION=0.15.1
+  curl --fail --show-error --silent --location \
+    "https://api.github.com/repos/typst/typst/releases/tags/v${TYPST_VERSION}" \
+    | jq -r '.assets[] | select(.name | test("(aarch64|x86_64)-unknown-linux-musl\\.tar\\.xz$")) | [.name, .digest] | @tsv'
+#+end_src
+
+Update ~TYPST_VERSION~, ~TYPST_LINUX_AMD64_SHA256~, and
+~TYPST_LINUX_ARM64_SHA256~ together in ~Containerfile~, then rebuild
+the image.
 
 * Filesystem and persistence
 
