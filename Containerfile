@@ -1,6 +1,8 @@
 FROM node:24-trixie-slim
 
-ARG CODEX_VERSION=0.153.3
+ARG CODEX_VERSION=0.154.0
+ARG CODEX_LINUX_AMD64_SHA256=fc6e3e3b85f2cf7d664520ee5c66a7fe4aa12bae7d46834f47e2f165fd0d6f78
+ARG CODEX_LINUX_ARM64_SHA256=97d93e11df72d3c26772db019e6ea8bb72c246500d46b98c760839f3240355e6
 ARG AST_GREP_VERSION=0.45.0
 ARG UV_VERSION=0.12.5
 ARG UV_INSTALLER_SHA256=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111
@@ -34,10 +36,44 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global \
         "@ast-grep/cli@${AST_GREP_VERSION}" \
-        "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
     && mkdir -p /home/codex/.codex /home/codex/.sdkman /workspace \
     && chown -R codex:codex /home/codex /workspace
+
+# Install the pinned standalone Codex package after verifying the checksum
+# reviewed and recorded from the matching GitHub release.
+RUN architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+        amd64) \
+            codex_target="x86_64-unknown-linux-musl"; \
+            codex_sha256="${CODEX_LINUX_AMD64_SHA256}" \
+            ;; \
+        arm64) \
+            codex_target="aarch64-unknown-linux-musl"; \
+            codex_sha256="${CODEX_LINUX_ARM64_SHA256}" \
+            ;; \
+        *) echo "Unsupported Codex architecture: ${architecture}" >&2; exit 1 ;; \
+    esac \
+    && if [ "${#codex_sha256}" -ne 64 ] \
+        || printf '%s' "${codex_sha256}" | grep --quiet '[^0-9a-f]'; then \
+        echo "Set the Codex SHA-256 build argument for ${architecture}." >&2; \
+        exit 1; \
+    fi \
+    && codex_archive="codex-package-${codex_target}.tar.gz" \
+    && curl --fail --show-error --silent --location \
+        "https://github.com/openai/codex/releases/download/rust-v${CODEX_VERSION}/${codex_archive}" \
+        --output "/tmp/${codex_archive}" \
+    && printf '%s  %s\n' "${codex_sha256}" "/tmp/${codex_archive}" | sha256sum --check --strict - \
+    && mkdir -p /opt/codex \
+    && tar --extract --gzip --file "/tmp/${codex_archive}" --directory /opt/codex \
+    && rm "/tmp/${codex_archive}" \
+    && chmod 0755 /opt/codex/bin/codex /opt/codex/bin/codex-code-mode-host /opt/codex/codex-path/rg \
+    && if [ -f /opt/codex/codex-resources/bwrap ]; then \
+        chmod 0755 /opt/codex/codex-resources/bwrap; \
+    fi \
+    && ln -s /opt/codex/bin/codex /usr/local/bin/codex \
+    && ln -s /opt/codex/bin/codex-code-mode-host /usr/local/bin/codex-code-mode-host \
+    && test "$(codex --version)" = "codex-cli ${CODEX_VERSION}"
 
 # Install uv dynamically for the build architecture from a verified installer.
 RUN curl --fail --show-error --silent --location "https://astral.sh/uv/${UV_VERSION}/install.sh" --output /tmp/install-uv.sh \

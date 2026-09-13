@@ -134,15 +134,16 @@ The image is built from ~node:24-trixie-slim~ and tagged
 1. Renames the base image's unprivileged UID/GID 1000 account to
    ~codex~.
 2. Installs the Debian-packaged system and development tools.
-3. Installs pinned Codex CLI and ast-grep releases through npm.
-4. Installs uv from a versioned, checksum-verified installer.
-5. Installs the checksum-verified official Go toolchain for the image
+3. Installs the pinned, checksum-verified standalone Codex CLI package.
+4. Installs the pinned ast-grep release through npm.
+5. Installs uv from a versioned, checksum-verified installer.
+6. Installs the checksum-verified official Go toolchain for the image
    architecture.
-6. Installs the checksum-verified official Typst CLI for the image
+7. Installs the checksum-verified official Typst CLI for the image
    architecture.
-7. Creates a checksum-verified SDKMAN seed for new home volumes.
-8. Copies the repository's custom home and entrypoint into the image.
-9. Switches permanently to the unprivileged ~codex~ user.
+8. Creates a checksum-verified SDKMAN seed for new home volumes.
+9. Copies the repository's custom home and entrypoint into the image.
+10. Switches permanently to the unprivileged ~codex~ user.
 
 The resulting container root filesystem is read-only at
 runtime. Writable locations are mounted explicitly by ~run.bash~.
@@ -228,7 +229,7 @@ The image includes the following user-facing tools:
 |------------------+------------------------------------------+----------------------------|
 | Tool             | Purpose                                  | Installation               |
 |------------------+------------------------------------------+----------------------------|
-| Codex CLI        | Interactive coding agent                 | Pinned npm package         |
+| Codex CLI        | Interactive coding agent                 | Verified official archive  |
 | Node.js and npm  | JavaScript runtime and packages          | Base image                 |
 | ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
 | ripgrep (~rg~)   | Fast textual search                      | Debian package             |
@@ -247,6 +248,23 @@ The image includes the following user-facing tools:
 
 ~bubblewrap~ is also installed as a runtime dependency of Codex's
 Linux sandbox.
+
+** Codex CLI
+
+The image installs the standalone Codex package for its build
+architecture. The version and both supported Linux archive checksums
+are explicit build arguments in ~Containerfile~.
+
+Before updating, open the GitHub release page for
+~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.154.0][here]] for v0.154.0) and review its
+~codex-package_SHA256SUMS~ asset. Then, update ~CODEX_VERSION~,
+~CODEX_LINUX_AMD64_SHA256~, and ~CODEX_LINUX_ARM64_SHA256~ together.
+
+A build fails before downloading Codex if the checksum selected for
+its architecture is still a placeholder or is not a lowercase
+64-character SHA-256 value. After the download, the build also fails
+unless the archive's computed SHA-256 matches that recorded checksum
+exactly.
 
 ** Node.js and npm
 
