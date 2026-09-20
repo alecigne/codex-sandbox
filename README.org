@@ -256,7 +256,7 @@ architecture. The version and both supported Linux archive checksums
 are explicit build arguments in ~Containerfile~.
 
 Before updating, open the GitHub release page for
-~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.154.0][here]] for v0.154.0) and review its
+~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.155.1][here]] for v0.155.1) and review its
 ~codex-package_SHA256SUMS~ asset. Then, update ~CODEX_VERSION~,
 ~CODEX_LINUX_AMD64_SHA256~, and ~CODEX_LINUX_ARM64_SHA256~ together.
 
@@ -312,7 +312,7 @@ The image pins both the uv release and the exact SHA-256 of its
 architecture-aware installer. To prepare an update:
 
 #+begin_src bash
-  UV_VERSION=0.12.5
+  UV_VERSION=0.12.17
   curl --fail --show-error --silent --location \
     "https://astral.sh/uv/${UV_VERSION}/install.sh" \
     --output /tmp/install-uv.sh
