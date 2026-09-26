@@ -23,6 +23,11 @@ and size limits. The host home and Podman socket are not mounted.
 - Use `rg` for textual search and `ast-grep` for syntax-aware search and
   rewrites in supported languages.
 - Use `jq` to query and transform JSON.
+- Ansible Core, `ansible-lint`, and `yamllint` are installed only for authoring
+  and local validation. Never run Ansible commands that connect to or change
+  remote hosts, including check mode, and do not query dynamic inventories.
+  Local-only commands such as `ansible-lint`, `yamllint`, `ansible-doc`,
+  `ansible-config`, and `ansible-playbook --syntax-check` are allowed.
 - Use Pandoc to convert Markdown into standalone HTML, DOCX, EPUB, and other
   document formats. Typst is installed as a fast PDF typesetting engine and can
   be used directly or through Pandoc with `--pdf-engine=typst`.

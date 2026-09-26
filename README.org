@@ -254,6 +254,9 @@ The image includes the following user-facing tools:
 | ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
 | ripgrep (~rg~)   | Fast textual search                      | Debian package             |
 | jq               | JSON queries and transformations         | Debian package             |
+| Ansible Core     | Local playbook validation and reference  | Debian package             |
+| Ansible Lint     | Static checks for Ansible content        | Debian package             |
+| yamllint         | YAML syntax and style checks             | Debian package             |
 | Git              | Version control                          | Debian package             |
 | ShellCheck       | Shell script analysis                    | Debian package             |
 | just             | Repository command runner                | Debian package             |
@@ -435,6 +438,32 @@ release ZIP, not the bootstrap script, so it cannot be used as
 The image seed initializes SDKMAN only when its files are absent from
 the persistent home. Rebuilding does not replace an existing SDKMAN
 installation or its installed JDKs.
+
+** Ansible authoring and validation
+
+The image includes Ansible Core, ~ansible-lint~, and ~yamllint~ for
+authoring and locally validating playbooks, roles, and collections. Useful
+commands include:
+
+#+begin_src bash
+  ansible-playbook --syntax-check playbook.yml
+  ansible-lint
+  yamllint .
+  ansible-doc ansible.builtin.copy
+  ansible-config dump
+#+end_src
+
+Ansible's local temporary files are directed to ~/tmp~, which remains writable
+inside Codex's sandbox and is removed with the container.
+
+The image-managed Codex instructions prohibit Ansible commands that connect to
+or change remote hosts. This includes check mode, which still contacts managed
+hosts, and dynamic inventory queries that contact external services. Ansible
+is present as an authoring and validation tool, not as authorization to deploy.
+
+Project-specific collections remain declared in each project's
+~requirements.yml~ and can be installed with ~ansible-galaxy~ when requested.
+Collection downloads may require network approval.
 
 ** Lean 4 with Elan
 

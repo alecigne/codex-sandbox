@@ -21,6 +21,8 @@ RUN groupmod --new-name codex node && usermod --login codex --home /home/codex -
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        ansible-core \
+        ansible-lint \
         ca-certificates \
         curl \
         elan \
@@ -32,8 +34,12 @@ RUN apt-get update \
         shellcheck \
         unzip \
         xz-utils \
+        yamllint \
         zip \
     && rm -rf /var/lib/apt/lists/* \
+    && ansible --version \
+    && ansible-lint --version \
+    && yamllint --version \
     && npm install --global \
         "@ast-grep/cli@${AST_GREP_VERSION}" \
     && npm cache clean --force \
@@ -140,6 +146,7 @@ COPY container-entrypoint.bash /usr/local/bin/container-entrypoint
 RUN chmod 0755 /usr/local/bin/container-entrypoint
 
 ENV HOME=/home/codex \
+    ANSIBLE_LOCAL_TEMP=/tmp \
     CODEX_HOME=/home/codex/.codex \
     ELAN_HOME=/home/codex/.elan \
     SDKMAN_DIR=/home/codex/.sdkman \
