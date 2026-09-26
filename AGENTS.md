@@ -71,6 +71,31 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   possible, and state what could not be exercised.
 - Do not change unrelated user work in a dirty worktree.
 
+## Git discipline
+
+- Gitea is the canonical remote. Local `master` tracks `gitea/master`; GitHub is
+  used for pull-request review and GitHub Releases.
+- Use topic branches with a short semantic prefix such as `feat/`, `fix/`, or
+  `chore/`. Pull requests are a discipline rather than an enforced protection,
+  so the owner may occasionally commit directly to `master`.
+- Never create commits. The owner creates signed commits and must retain control
+  of their signatures. When useful, suggest a concise plain-English commit
+  message without a Conventional Commits prefix.
+- Do not merge with GitHub's merge, squash, or rebase buttons. After review, the
+  owner fast-forwards `master` locally with `git merge --ff-only`, then pushes
+  the unchanged signed commits to Gitea and GitHub. GitHub records the pull
+  request as indirectly merged.
+- Releases are started manually through the GitHub `Release` workflow after the
+  intended commit reaches `master`. The owner selects `patch`, `minor`, or
+  `major`; the workflow creates a GitHub tag and release but publishes no
+  package, container image, artifact, or release asset.
+- Treat incompatible launcher or sandbox-option changes as major releases,
+  backward-compatible capabilities as minor releases, and fixes or compatible
+  dependency updates as patch releases.
+- After a GitHub release, the owner fetches its tags from GitHub and pushes all
+  local tags to Gitea. Never push, merge, tag, or start a release unless the
+  owner explicitly requests that external action.
+
 ## Validation
 
 Run the checks relevant to the edited files:
