@@ -1,8 +1,8 @@
 FROM node:24-trixie-slim
 
-ARG CODEX_VERSION=0.155.1
-ARG CODEX_LINUX_AMD64_SHA256=a65b895c6ac1a73629bbe4b864640c86133e94a43b4d67b3103044e1a306d5a2
-ARG CODEX_LINUX_ARM64_SHA256=71857dbc9bea3613410e8a69cfb46b07c0402d6d20fec18843dbaffd757634bd
+ARG CODEX_VERSION=0.157.1
+ARG CODEX_LINUX_AMD64_SHA256=0e211868c9fd73cb49ad35ac675b5eafdf6b9f453df8a493df980c59a590fe5f
+ARG CODEX_LINUX_ARM64_SHA256=499fe70d70f4e4904b6a5a4ec1b1edf6c4a1a47a075ea7e2ec2b5262ba47b471
 ARG AST_GREP_VERSION=0.45.3
 ARG UV_VERSION=0.12.17
 ARG UV_INSTALLER_SHA256=37b82230b28617c6c24fa52364fa28aa37f2aa40c114809a623f6b064a9730e5
@@ -73,7 +73,7 @@ RUN architecture="$(dpkg --print-architecture)" \
     fi \
     && ln -s /opt/codex/bin/codex /usr/local/bin/codex \
     && ln -s /opt/codex/bin/codex-code-mode-host /usr/local/bin/codex-code-mode-host \
-    && test "$(codex --version)" = "codex-cli ${CODEX_VERSION}"
+    && test "$(codex --no-daemon --version)" = "codex-cli ${CODEX_VERSION}"
 
 # Install uv dynamically for the build architecture from a verified installer.
 RUN curl --fail --show-error --silent --location "https://astral.sh/uv/${UV_VERSION}/install.sh" --output /tmp/install-uv.sh \

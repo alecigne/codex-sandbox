@@ -150,4 +150,4 @@ exec podman run --rm --interactive --tty \
   --mount "type=volume,source=${SANDBOX_HOME_VOLUME},target=/home/codex" \
   --workdir /workspace \
   "${IMAGE}" \
-  codex --sandbox workspace-write --ask-for-approval on-request "${CODEX_ARGUMENTS[@]}"
+  codex --no-daemon --sandbox workspace-write --ask-for-approval on-request "${CODEX_ARGUMENTS[@]}"

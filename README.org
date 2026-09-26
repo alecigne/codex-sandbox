@@ -57,6 +57,11 @@ This creates ~/workspace/frontend~ and ~/workspace/backend~; neither
 directory is treated as primary. Selected directory basenames must be
 unique within a launch.
 
+The launcher always passes ~--no-daemon~ to Codex. Each container
+therefore runs its CLI session directly instead of starting or using
+the shared app-server daemon. Normal interactive work and saved-session
+commands such as ~resume~ and ~fork~ remain available.
+
 To launch with an empty, disposable workspace and no host working
 directory mounted, use the explicit ~--empty-workspace~ option:
 
@@ -271,7 +276,7 @@ architecture. The version and both supported Linux archive checksums
 are explicit build arguments in ~Containerfile~.
 
 Before updating, open the GitHub release page for
-~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.155.1][here]] for v0.155.1) and review its
+~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.157.1][here]] for v0.157.1) and review its
 ~codex-package_SHA256SUMS~ asset. Then, update ~CODEX_VERSION~,
 ~CODEX_LINUX_AMD64_SHA256~, and ~CODEX_LINUX_ARM64_SHA256~ together.
 
