@@ -87,8 +87,9 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   request as indirectly merged.
 - Releases are started manually through the GitHub `Release` workflow after the
   intended commit reaches `master`. The owner selects `patch`, `minor`, or
-  `major`; the workflow creates a GitHub tag and release but publishes no
-  package, container image, artifact, or release asset.
+  `major`; the workflow creates a GitHub tag and release, attaches the tracked
+  PDF from that commit under a versioned filename, and publishes no package or
+  container image.
 - Treat incompatible launcher or sandbox-option changes as major releases,
   backward-compatible capabilities as minor releases, and fixes or compatible
   dependency updates as patch releases.
