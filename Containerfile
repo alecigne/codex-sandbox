@@ -1,17 +1,33 @@
 FROM node:24-trixie-slim
 
+# Codex CLI
 ARG CODEX_VERSION=0.157.1
 ARG CODEX_LINUX_AMD64_SHA256=0e211868c9fd73cb49ad35ac675b5eafdf6b9f453df8a493df980c59a590fe5f
 ARG CODEX_LINUX_ARM64_SHA256=499fe70d70f4e4904b6a5a4ec1b1edf6c4a1a47a075ea7e2ec2b5262ba47b471
+
+# ast-grep
 ARG AST_GREP_VERSION=0.45.3
+
+# uv
 ARG UV_VERSION=0.12.17
 ARG UV_INSTALLER_SHA256=37b82230b28617c6c24fa52364fa28aa37f2aa40c114809a623f6b064a9730e5
+
+# Go
 ARG GO_VERSION=1.27.1
 ARG GO_LINUX_AMD64_SHA256=63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445
 ARG GO_LINUX_ARM64_SHA256=3450b45a3f9ee8568792736a5c5e70a1f2e9b36c35a8f74958c03e51d7d92bec
+
+# Repeater
+ARG REPEATER_VERSION=0.1.10
+ARG REPEATER_LINUX_AMD64_SHA256=cf9e0d0e6873b49349ba585eb98a9a89cc57613b1a70c294ead671ef807bb026
+ARG REPEATER_LINUX_ARM64_SHA256=77faea8e465e9675cb7ef0e8854caebc7e379fda6751f00164db3c20c13eed6c
+
+# Typst
 ARG TYPST_VERSION=0.15.1
 ARG TYPST_LINUX_AMD64_SHA256=a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c
 ARG TYPST_LINUX_ARM64_SHA256=5aa8d74a3d906e60ea12a66ac2f37f8eef1b14cbad7182a745e393a10c23dcee
+
+# SDKMAN!
 ARG SDKMAN_VERSION=5.23.1
 ARG SDKMAN_NATIVE_VERSION=0.7.34
 ARG SDKMAN_INSTALLER_SHA256=8642db91ce900cf406d2cd457c2b3c7b8fe3e4a8fe454192ae6a34df435052ec
@@ -104,6 +120,30 @@ RUN architecture="$(dpkg --print-architecture)" \
     && tar --extract --gzip --file "/tmp/${go_archive}" --directory /usr/local \
     && rm "/tmp/${go_archive}" \
     && /usr/local/go/bin/go version
+
+# Install the official Repeater CLI for the build architecture.
+RUN architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+        amd64) \
+            repeater_target="x86_64-unknown-linux-gnu"; \
+            repeater_sha256="${REPEATER_LINUX_AMD64_SHA256}" \
+            ;; \
+        arm64) \
+            repeater_target="aarch64-unknown-linux-gnu"; \
+            repeater_sha256="${REPEATER_LINUX_ARM64_SHA256}" \
+            ;; \
+        *) echo "Unsupported Repeater architecture: ${architecture}" >&2; exit 1 ;; \
+    esac \
+    && repeater_archive="repeater-${repeater_target}.tar.xz" \
+    && curl --fail --show-error --silent --location \
+        "https://github.com/shaankhosla/repeater/releases/download/v${REPEATER_VERSION}/${repeater_archive}" \
+        --output "/tmp/${repeater_archive}" \
+    && printf '%s  %s\n' "${repeater_sha256}" "/tmp/${repeater_archive}" | sha256sum --check --strict - \
+    && tar --extract --xz --file "/tmp/${repeater_archive}" --directory /usr/local/bin \
+        --strip-components=1 "repeater-${repeater_target}/repeater" \
+    && rm "/tmp/${repeater_archive}" \
+    && chmod 0755 /usr/local/bin/repeater \
+    && test "$(repeater --version)" = "repeater ${REPEATER_VERSION}"
 
 # Install the official Typst CLI for the build architecture.
 RUN architecture="$(dpkg --print-architecture)" \

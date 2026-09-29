@@ -37,6 +37,9 @@ and size limits. The host home and Podman socket are not mounted.
 - Go and tools installed with `go install` are available on `PATH`. Go build
   and module caches are disposable under `/tmp`; persistent tool installation
   may require approval.
+- Repeater is installed for validating Markdown spaced-repetition cards. Run
+  `repeater check PATH --plain` as directed by applicable project instructions
+  or skills.
 - Use uv to manage Python versions, environments, and tools. Its cache is
   disposable under `/tmp`; persistent Python and tool installation may require
   approval.

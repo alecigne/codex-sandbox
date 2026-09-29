@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build SilverBullet Wiki"
+  short_description: "Build SilverBullet wikis with Repeater cards"
+  default_prompt: "Use $build-silverbullet-wiki to create or improve a SilverBullet knowledge wiki with integrated Repeater cards."
