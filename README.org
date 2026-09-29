@@ -131,21 +131,6 @@ separator for Codex arguments:
   just run ~/src/my-project -- --model gpt-5.6-sol
 #+end_src
 
-* Releases
-
-Releases are created manually through the ~Release~ workflow in GitHub
-Actions. Run the workflow from ~master~ and choose a ~patch~, ~minor~,
-or ~major~ version increment.
-
-The workflow finds the latest stable ~vMAJOR.MINOR.PATCH~ tag, applies
-the selected increment, creates the resulting tag at the selected
-~master~ commit, and creates a GitHub release with generated notes. If
-the repository has no version tags yet, the calculation starts at
-~v0.0.0~.
-
-Pushes and pull requests do not trigger releases. The workflow does
-not upload build artifacts or publish packages or container images.
-
 * Image construction
 
 The image is built from ~node:24-trixie-slim~ and tagged
@@ -599,3 +584,19 @@ npm packages, uv-managed Python versions and tools, Go-installed
 tools, cached Typst Universe packages, SDKMAN and its installed JDKs,
 and Elan's downloaded Lean toolchains and configuration. It does not
 affect selected host working directories.
+
+* Releases
+
+Releases are created manually through the ~Release~ workflow in GitHub
+Actions. Run the workflow from ~master~ and choose a ~patch~, ~minor~,
+or ~major~ version increment.
+
+The workflow finds the latest stable ~vMAJOR.MINOR.PATCH~ tag, applies
+the selected increment, creates the resulting tag at the selected
+~master~ commit, and creates a GitHub release with generated notes and
+the tracked PDF from that commit. The release asset is named
+~codex-sandbox-vMAJOR.MINOR.PATCH.pdf~. If the repository has no
+version tags yet, the calculation starts at ~v0.0.0~.
+
+Pushes and pull requests do not trigger releases. The workflow does
+not publish packages or container images.
