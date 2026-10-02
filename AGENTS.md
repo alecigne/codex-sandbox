@@ -20,8 +20,8 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 
 ## Repository map
 
-- `Containerfile` builds the Node-based image and installs Codex CLI, sandbox
-  dependencies, and SDKMAN.
+- `Containerfile` builds the Debian-based image and installs Codex CLI,
+  development tools, sandbox dependencies, and SDKMAN.
 - `run.bash` builds the image when needed and launches the disposable Podman
   container.
 - `Justfile` provides common build, validation, launch, and container-shell
@@ -48,8 +48,9 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   clearly documented security rationale.
 - Preserve SELinux compatibility for the project bind mount.
 - Do not bake credentials or host-specific paths into the image or scripts.
-- Pin the Codex CLI and SDKMAN versions through their build arguments; treat
-  version and checksum bumps as explicit dependency updates.
+- Pin the Node.js, Codex CLI, and SDKMAN versions through their build arguments;
+  treat version and checksum bumps as explicit dependency updates. Use the npm
+  version bundled with the pinned Node.js archive.
 - Keep scripts Bash-based, non-interactive where practical, and strict with
   `set -euo pipefail`.
 - Quote shell expansions and use long-form flags where clarity matters.

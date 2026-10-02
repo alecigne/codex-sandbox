@@ -1,16 +1,21 @@
-FROM node:24-trixie-slim
+FROM debian:trixie-slim
+
+# Node.js LTS
+ARG NODE_VERSION=24.21.0
+ARG NODE_LINUX_AMD64_SHA256=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6
+ARG NODE_LINUX_ARM64_SHA256=6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2
 
 # Codex CLI
-ARG CODEX_VERSION=0.159.1
-ARG CODEX_LINUX_AMD64_SHA256=9a2dff8e1eb9bad83f52edb6f91175efeb5c68a316f880c95d7770f87a34fc5c
-ARG CODEX_LINUX_ARM64_SHA256=63b3b5a4e76b4174d651d2d363ac028fdb4961ba47eca9946da3c35267999aec
+ARG CODEX_VERSION=0.160.0
+ARG CODEX_LINUX_AMD64_SHA256=4fcc47ab57f52ff75363951a8761146cd10c8288bd86fed45487dbb204a16b71
+ARG CODEX_LINUX_ARM64_SHA256=7f0fe42ff22ecfa3a47bc4a34f5b22c4218b431a4ec0aba51c7d98299f07900c
 
 # ast-grep
 ARG AST_GREP_VERSION=0.45.3
 
 # uv
-ARG UV_VERSION=0.12.17
-ARG UV_INSTALLER_SHA256=37b82230b28617c6c24fa52364fa28aa37f2aa40c114809a623f6b064a9730e5
+ARG UV_VERSION=0.12.22
+ARG UV_INSTALLER_SHA256=58488ae8dbd0773134c92c85e901430e33f99d975bd7f929d26aa9ab0c2f9390
 
 # Go
 ARG GO_VERSION=1.27.1
@@ -32,8 +37,9 @@ ARG SDKMAN_VERSION=5.23.1
 ARG SDKMAN_NATIVE_VERSION=0.7.34
 ARG SDKMAN_INSTALLER_SHA256=8642db91ce900cf406d2cd457c2b3c7b8fe3e4a8fe454192ae6a34df435052ec
 
-# Keep UID/GID 1000 while giving the base image account a project-specific name.
-RUN groupmod --new-name codex node && usermod --login codex --home /home/codex --move-home node
+# Keep UID/GID 1000 compatible with existing persistent home volumes.
+RUN groupadd --gid 1000 codex \
+    && useradd --uid 1000 --gid codex --shell /bin/bash --create-home codex
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -45,6 +51,8 @@ RUN apt-get update \
         git \
         just \
         jq \
+        libatomic1 \
+        libstdc++6 \
         pandoc \
         ripgrep \
         shellcheck \
@@ -56,11 +64,33 @@ RUN apt-get update \
     && ansible --version \
     && ansible-lint --version \
     && yamllint --version \
-    && npm install --global \
-        "@ast-grep/cli@${AST_GREP_VERSION}" \
-    && npm cache clean --force \
     && mkdir -p /home/codex/.codex /home/codex/.sdkman /workspace \
     && chown -R codex:codex /home/codex /workspace
+
+# Install the official Node.js LTS archive for the build architecture.
+# Checksums are reviewed from the release's SHASUMS256.txt.
+RUN architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+        amd64) node_arch=x64; node_sha256="${NODE_LINUX_AMD64_SHA256}" ;; \
+        arm64) node_arch=arm64; node_sha256="${NODE_LINUX_ARM64_SHA256}" ;; \
+        *) echo "Unsupported Node.js architecture: ${architecture}" >&2; exit 1 ;; \
+    esac \
+    && node_archive="node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+    && curl --fail --show-error --silent --location \
+        "https://nodejs.org/dist/v${NODE_VERSION}/${node_archive}" \
+        --output "/tmp/${node_archive}" \
+    && printf '%s  %s\n' "${node_sha256}" "/tmp/${node_archive}" | sha256sum --check --strict - \
+    && tar --extract --xz --file "/tmp/${node_archive}" --directory /usr/local \
+        --strip-components=1 --no-same-owner \
+    && rm "/tmp/${node_archive}" \
+    && ln -s /usr/local/bin/node /usr/local/bin/nodejs \
+    && test "$(node --version)" = "v${NODE_VERSION}" \
+    && npm --version
+
+RUN npm install --global \
+        "@ast-grep/cli@${AST_GREP_VERSION}" \
+    && ast-grep --version \
+    && npm cache clean --force
 
 # Install the pinned standalone Codex package after verifying the checksum
 # reviewed and recorded from the matching GitHub release.

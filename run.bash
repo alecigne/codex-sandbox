@@ -34,7 +34,7 @@ Examples:
   ~/src/codex-sandbox/run.bash --empty-workspace
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
-  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
+  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-6.1-sol
 EOF
 }
 

@@ -77,7 +77,7 @@ empty-workspace mode.
 Arguments after ~--~ are passed to Codex:
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-5.6-sol
+  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-6.1-sol
 #+end_src
 
 Building and launching are separate operations. To build or refresh
@@ -128,19 +128,20 @@ Arguments to ~just run~ are forwarded to ~run.bash~, including the
 separator for Codex arguments:
 
 #+begin_src bash
-  just run ~/src/my-project -- --model gpt-5.6-sol
+  just run ~/src/my-project -- --model gpt-6.1-sol
 #+end_src
 
 * Image construction
 
-The image is built from ~node:24-trixie-slim~ and tagged
+The image is built from ~debian:trixie-slim~ and tagged
 ~codex-sandbox:local~. The ~Containerfile~:
 
-1. Renames the base image's unprivileged UID/GID 1000 account to
-   ~codex~.
+1. Creates the unprivileged ~codex~ account with UID/GID 1000,
+   preserving compatibility with existing persistent home volumes.
 2. Installs the Debian-packaged system and development tools.
-3. Installs the pinned, checksum-verified standalone Codex CLI package.
-4. Installs the pinned ast-grep release through npm.
+3. Installs the pinned, checksum-verified official Node.js LTS archive
+   with its bundled npm, then the pinned ast-grep release.
+4. Installs the pinned, checksum-verified standalone Codex CLI package.
 5. Installs uv from a versioned, checksum-verified installer.
 6. Installs the checksum-verified official Go toolchain for the image
    architecture.
@@ -164,8 +165,9 @@ To build or refresh the image without launching Codex:
 #+end_src
 
 Every build uses Podman's ~--pull=newer~ policy. This checks for a
-newer ~node:24-trixie-slim~ base so current Node and Debian package
-updates are incorporated when available.
+newer ~debian:trixie-slim~ base so current Debian package updates are
+incorporated when available. Node.js and the other explicitly pinned
+tools are updated by changing their build arguments and checksums.
 
 * Custom home
 
@@ -248,7 +250,8 @@ The image includes the following user-facing tools:
 | Tool             | Purpose                                  | Installation               |
 |------------------+------------------------------------------+----------------------------|
 | Codex CLI        | Interactive coding agent                 | Verified official archive  |
-| Node.js and npm  | JavaScript runtime and packages          | Base image                 |
+| Node.js          | JavaScript runtime                       | Verified official archive  |
+| npm              | JavaScript package manager               | Bundled with Node.js       |
 | ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
 | ripgrep (~rg~)   | Fast textual search                      | Debian package             |
 | jq               | JSON queries and transformations         | Debian package             |
@@ -278,7 +281,7 @@ architecture. The version and both supported Linux archive checksums
 are explicit build arguments in ~Containerfile~.
 
 Before updating, open the GitHub release page for
-~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.157.1][here]] for v0.157.1) and review its
+~rust-v$CODEX_VERSION~ (for example, [[https://github.com/openai/codex/releases/tag/rust-v0.160.0][here]] for v0.160.0) and review its
 ~codex-package_SHA256SUMS~ asset. Then, update ~CODEX_VERSION~,
 ~CODEX_LINUX_AMD64_SHA256~, and ~CODEX_LINUX_ARM64_SHA256~ together.
 
@@ -290,7 +293,15 @@ exactly.
 
 ** Node.js and npm
 
-Node.js and npm come from the base image. Project dependencies remain
+The build installs Node.js 24.21.0 LTS from the official Linux archive,
+with separate SHA-256 pins for AMD64 and ARM64. Node.js is an explicit
+development tool; the standalone Codex CLI does not require it.
+
+The image uses the npm version bundled with that Node.js archive
+(npm 11.19.0 for Node.js 24.21.0), keeping the runtime and package
+manager on the pairing distributed by the Node.js project.
+
+Project dependencies remain
 in each selected project's ~node_modules~ directory. At runtime,
 global npm packages install below ~/home/codex/.local~, whose ~bin~
 directory is on ~PATH~:
@@ -305,6 +316,23 @@ removed with the container. Package downloads may require network
 approval, and persistent global installation may require filesystem
 approval when Codex runs these commands. Image-managed global packages
 remain installed system-wide.
+
+*** Updating Node.js and npm
+
+Review the intended [[https://nodejs.org/en/download][Node.js LTS release]] and its official checksum file:
+
+#+begin_src bash
+  NODE_VERSION=24.21.0
+  curl --fail --show-error --silent --location \
+    "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+    | rg "node-v${NODE_VERSION}-linux-(x64|arm64)\\.tar\\.xz$"
+#+end_src
+
+Update ~NODE_VERSION~, ~NODE_LINUX_AMD64_SHA256~, and
+~NODE_LINUX_ARM64_SHA256~ together in ~Containerfile~, then rebuild.
+npm updates alongside Node.js through the release archive. Node.js
+security updates require an explicit pin update; pulling a newer
+Debian base does not update it.
 
 ** Python with uv
 
@@ -334,7 +362,7 @@ The image pins both the uv release and the exact SHA-256 of its
 architecture-aware installer. To prepare an update:
 
 #+begin_src bash
-  UV_VERSION=0.12.17
+  UV_VERSION=0.12.22
   curl --fail --show-error --silent --location \
     "https://astral.sh/uv/${UV_VERSION}/install.sh" \
     --output /tmp/install-uv.sh

@@ -96,6 +96,8 @@
   )
 
   show link: set text(fill: accent)
+  // Pandoc wraps tables in figures; let growing tool lists span pages.
+  show figure.where(kind: table): set block(breakable: true)
   show table: it => {
     set align(left)
     it
