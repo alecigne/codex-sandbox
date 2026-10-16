@@ -121,9 +121,13 @@ done
 
 DIRECTORY_MOUNTS=()
 for index in "${!RESOLVED_DIRECTORIES[@]}"; do
+  # Podman parses --mount as CSV. Quote whole fields and double embedded quotes
+  # so commas and quotes in directory names remain part of the paths.
+  mount_source="${RESOLVED_DIRECTORIES[index]//\"/\"\"}"
+  mount_target="/workspace/${WORKSPACE_NAMES[index]//\"/\"\"}"
   DIRECTORY_MOUNTS+=(
     --mount
-    "type=bind,source=${RESOLVED_DIRECTORIES[index]},target=/workspace/${WORKSPACE_NAMES[index]},relabel=private"
+    "type=bind,\"source=${mount_source}\",\"target=${mount_target}\",relabel=private"
   )
 done
 

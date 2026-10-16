@@ -61,6 +61,9 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 
 - Update `README.org` whenever behavior, prerequisites, CLI syntax, persistence,
   mounts, or the security boundary changes.
+- Keep exact image-managed tool versions and checksums in `Containerfile`.
+  Do not repeat them in `README.org`; use placeholders in update examples so
+  version-only dependency updates do not require README or PDF changes.
 - Treat `README.org` as the documentation source of truth. After changing it,
   run `just pdf` and include the refreshed `docs/codex-sandbox.pdf`.
 - Keep this repository's PDF build self-contained and reproducible from
