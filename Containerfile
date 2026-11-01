@@ -13,6 +13,10 @@ ARG CODEX_LINUX_ARM64_SHA256=7821b77dda2e6283fb1f63f3165177a271da8833e857cf673c6
 # ast-grep
 ARG AST_GREP_VERSION=0.51.0
 
+# Playwright baseline for browser system dependencies; projects own the runner
+# and download browser binaries matching their locked Playwright version.
+ARG PLAYWRIGHT_VERSION=1.64.1
+
 # uv
 ARG UV_VERSION=0.13.6
 ARG UV_INSTALLER_SHA256=f7a56e7afaec49a3bcbc3ac3cdbe917e7c6ce30e0d815308a12e531aa5ef23b7
@@ -90,6 +94,12 @@ RUN architecture="$(dpkg --print-architecture)" \
 RUN npm install --global \
         "@ast-grep/cli@${AST_GREP_VERSION}" \
     && ast-grep --version \
+    && npm cache clean --force
+
+# The runtime root is read-only, so install all three browsers' Linux libraries
+# at build time. Browser binaries belong in the persistent runtime cache.
+RUN npx --yes "playwright@${PLAYWRIGHT_VERSION}" install-deps chromium firefox webkit \
+    && rm -rf /var/lib/apt/lists/* \
     && npm cache clean --force
 
 # Install the pinned standalone Codex package after verifying the checksum

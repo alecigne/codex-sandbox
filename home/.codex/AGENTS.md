@@ -34,6 +34,12 @@ and size limits. The host home and Podman socket are not mounted.
 - Git, ShellCheck, `just`, Node.js, and npm are installed. npm's cache is
   disposable under `/tmp`; persistent user-global packages install below
   `/home/codex/.local` and may require approval.
+- Playwright system libraries for headless Chromium, Firefox, and WebKit are
+  installed. Use the project's Playwright dependency and run
+  `npx playwright install chromium firefox webkit` for matching browsers,
+  cached in the persistent home. Do not use `install-deps` or `--with-deps`
+  against the read-only image. Downloads, cache writes, and local browser tests
+  may require approval. Save reports and traces inside the selected project.
 - Go and tools installed with `go install` are available on `PATH`. Go build
   and module caches are disposable under `/tmp`; persistent tool installation
   may require approval.

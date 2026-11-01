@@ -144,6 +144,7 @@ exec podman run --rm --interactive --tty \
   --env "TERM=${CONTAINER_TERM}" \
   --env "COLORTERM=${CONTAINER_COLORTERM}" \
   --read-only \
+  --shm-size 1g \
   --tmpfs /tmp:rw,nosuid,nodev,size=1g \
   --tmpfs /run:rw,nosuid,nodev,size=64m \
   --tmpfs /workspace:rw,nosuid,nodev,size=1g,mode=1777 \

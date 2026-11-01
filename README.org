@@ -143,7 +143,8 @@ The image is built from ~debian:trixie-slim~ and tagged
    preserving compatibility with existing persistent home volumes.
 2. Installs the Debian-packaged system and development tools.
 3. Installs the pinned, checksum-verified official Node.js LTS archive
-   with its bundled npm, then the pinned ast-grep release.
+   with its bundled npm, then the pinned ast-grep release and Playwright
+   browser system dependencies.
 4. Installs the pinned, checksum-verified standalone Codex CLI package.
 5. Installs uv from a versioned, checksum-verified installer.
 6. Installs the checksum-verified official Go toolchain for the image
@@ -259,6 +260,7 @@ The image includes the following user-facing tools:
 | Codex CLI        | Interactive coding agent                 | Verified official archive  |
 | Node.js          | JavaScript runtime                       | Verified official archive  |
 | npm              | JavaScript package manager               | Bundled with Node.js       |
+| Playwright libraries | Headless Chromium, Firefox, and WebKit | Pinned dependency installer |
 | ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
 | ripgrep (~rg~)   | Fast textual search                      | Debian package             |
 | jq               | JSON queries and transformations         | Debian package             |
@@ -340,6 +342,34 @@ Update ~NODE_VERSION~, ~NODE_LINUX_AMD64_SHA256~, and
 npm updates alongside Node.js through the release archive. Node.js
 security updates require an explicit pin update; pulling a newer
 Debian base does not update it.
+
+** Browser tests with Playwright
+
+The image includes the Linux libraries and fonts needed for headless
+Chromium, Firefox, and WebKit. Each web project supplies its own
+~@playwright/test~ dependency, configuration, and tests. From a
+project that already declares Playwright:
+
+#+begin_src bash
+  cd /workspace/my-web-project
+  npm ci
+  npx playwright install chromium firefox webkit
+  npx playwright test --workers=1
+#+end_src
+
+Browsers are cached by default in ~/home/codex/.cache/ms-playwright~
+and persist across containers. Run the install command again after
+upgrading the project's Playwright version. Run the application
+inside the container and use its loopback URL in the test configuration.
+Downloads, persistent cache writes, and local browser tests may
+require Codex approval.
+
+The root filesystem is read-only: system dependencies are installed
+only during the image build. Update ~PLAYWRIGHT_VERSION~ in
+~Containerfile~ and rebuild when additional libraries are needed;
+do not use ~install-deps~ or ~--with-deps~ at runtime. The launcher
+provides 1 GiB of private shared memory for browsers. Save reports and
+traces under the mounted project so they persist on the host.
 
 ** Python with uv
 
@@ -598,6 +628,7 @@ the image.
 | ~/home/codex~                       | ~codex-sandbox-home~ volume | Persists across containers  |
 | ~/tmp~                              | 1 GiB private tmpfs         | Removed with the container  |
 | ~/run~                              | 64 MiB private tmpfs        | Removed with the container  |
+| ~/dev/shm~                          | 1 GiB private shared memory | Removed with the container  |
 | Container root                      | Read-only image             | Replaced with the container |
 |-------------------------------------+-----------------------------+-----------------------------|
 
@@ -608,8 +639,8 @@ mounted and every file created below ~/workspace~ is disposable.
 
 The home volume contains Codex login and session state, user-global
 npm packages, uv-managed Python versions and tools, Go-installed
-tools, cached Typst Universe packages, SDKMAN and installed JDKs, and
-Elan-managed Lean toolchains. The container itself is launched with
+tools, Playwright browser binaries, cached Typst Universe packages,
+SDKMAN and installed JDKs, and Elan-managed Lean toolchains. The container itself is launched with
 ~--rm~; only this volume and selected host directories outlive it.
 
 * Isolation boundary
@@ -621,6 +652,9 @@ The outer Podman container:
 - Drops all Linux capabilities and enables ~no-new-privileges~.
 
 - Uses a read-only root filesystem and a 512-process limit.
+
+- Provides private shared memory for browsers without sharing the
+  host's IPC namespace.
 
 - Mounts only explicitly selected host directories, if any, and its
   private home volume.
@@ -658,8 +692,9 @@ removed:
 
 This permanently deletes Codex credentials and sessions, user-global
 npm packages, uv-managed Python versions and tools, Go-installed
-tools, cached Typst Universe packages, SDKMAN and its installed JDKs,
-and Elan's downloaded Lean toolchains and configuration. It does not
+tools, Playwright browser binaries, cached Typst Universe packages,
+SDKMAN and its installed JDKs, and Elan's downloaded Lean toolchains and
+configuration. It does not
 affect selected host working directories.
 
 * Releases
