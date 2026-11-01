@@ -53,6 +53,15 @@ and size limits. The host home and Podman socket are not mounted.
 - Commands that download dependencies or toolchains may require network
   approval.
 
+## Git commit timestamps
+
+- Always use the project's established local timezone for Git commits. Infer it
+  from recent author and committer timestamps when possible; otherwise default
+  to `Europe/Paris`.
+- Set `TZ` for the commit command, for example `TZ=Europe/Paris git commit ...`,
+  so author and committer timestamps use the correct current daylight-saving
+  offset.
+
 ## Documentation publishing
 
 - When asked to create or refresh a polished project PDF, use the
