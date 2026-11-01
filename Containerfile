@@ -1,26 +1,26 @@
 FROM debian:trixie-slim
 
 # Node.js LTS
-ARG NODE_VERSION=24.22.0
-ARG NODE_LINUX_AMD64_SHA256=cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008
-ARG NODE_LINUX_ARM64_SHA256=fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143
+ARG NODE_VERSION=24.22.2
+ARG NODE_LINUX_AMD64_SHA256=48cc0e21e048790e54c0cf5749c2725005313d652651c40b7a21feb9697aaf75
+ARG NODE_LINUX_ARM64_SHA256=eb187837a2230d4047161ac0be008584e16b46f726e9c9490ee35dc6b17d9ba8
 
 # Codex CLI
-ARG CODEX_VERSION=0.163.0
-ARG CODEX_LINUX_AMD64_SHA256=582646c6bf0561eb0de540f7fc85b9121b0091a826bc6e96830b7f1722122182
-ARG CODEX_LINUX_ARM64_SHA256=9d8ecf2d19d3e184877983902d6c85de48b3888dcb72c382a8a0c975845927fb
+ARG CODEX_VERSION=0.166.0
+ARG CODEX_LINUX_AMD64_SHA256=1d44b28bc4ac9937d7d3532264baa68a507ce364956a0d4ebb856f331cdee254
+ARG CODEX_LINUX_ARM64_SHA256=7821b77dda2e6283fb1f63f3165177a271da8833e857cf673c6ca1c9db3bfcc6
 
 # ast-grep
-ARG AST_GREP_VERSION=0.45.3
+ARG AST_GREP_VERSION=0.51.0
 
 # uv
-ARG UV_VERSION=0.12.22
-ARG UV_INSTALLER_SHA256=58488ae8dbd0773134c92c85e901430e33f99d975bd7f929d26aa9ab0c2f9390
+ARG UV_VERSION=0.13.6
+ARG UV_INSTALLER_SHA256=f7a56e7afaec49a3bcbc3ac3cdbe917e7c6ce30e0d815308a12e531aa5ef23b7
 
 # Go
-ARG GO_VERSION=1.27.2
-ARG GO_LINUX_AMD64_SHA256=ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5
-ARG GO_LINUX_ARM64_SHA256=94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8
+ARG GO_VERSION=1.27.3
+ARG GO_LINUX_AMD64_SHA256=65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40
+ARG GO_LINUX_ARM64_SHA256=a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49
 
 # Repeater
 ARG REPEATER_VERSION=0.1.10
@@ -33,9 +33,9 @@ ARG TYPST_LINUX_AMD64_SHA256=a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03
 ARG TYPST_LINUX_ARM64_SHA256=5aa8d74a3d906e60ea12a66ac2f37f8eef1b14cbad7182a745e393a10c23dcee
 
 # SDKMAN!
-ARG SDKMAN_VERSION=5.23.2
-ARG SDKMAN_NATIVE_VERSION=0.7.34
-ARG SDKMAN_INSTALLER_SHA256=e030f9814f5c78ba704b7aee6cb57efd4406012b6735fc1c25dbbfa2aee0ef35
+ARG SDKMAN_VERSION=5.24.0
+ARG SDKMAN_NATIVE_VERSION=0.8.0
+ARG SDKMAN_INSTALLER_SHA256=434360efbde4d2ee31940ff28130fc6ec66121f1e1afc84aa37504752c4babb0
 
 # Keep UID/GID 1000 compatible with existing persistent home volumes.
 RUN groupadd --gid 1000 codex \
@@ -119,12 +119,14 @@ RUN architecture="$(dpkg --print-architecture)" \
     && mkdir -p /opt/codex \
     && tar --extract --gzip --file "/tmp/${codex_archive}" --directory /opt/codex \
     && rm "/tmp/${codex_archive}" \
-    && chmod 0755 /opt/codex/bin/codex /opt/codex/bin/codex-code-mode-host /opt/codex/codex-path/rg \
+    && chmod 0755 /opt/codex/bin/codex /opt/codex/bin/codex-code-mode-host \
+        /opt/codex/bin/codex-exec-server /opt/codex/codex-path/rg \
     && if [ -f /opt/codex/codex-resources/bwrap ]; then \
         chmod 0755 /opt/codex/codex-resources/bwrap; \
     fi \
     && ln -s /opt/codex/bin/codex /usr/local/bin/codex \
     && ln -s /opt/codex/bin/codex-code-mode-host /usr/local/bin/codex-code-mode-host \
+    && ln -s /opt/codex/bin/codex-exec-server /usr/local/bin/codex-exec-server \
     && test "$(codex --no-daemon --version)" = "codex-cli ${CODEX_VERSION}"
 
 # Install uv dynamically for the build architecture from a verified installer.
