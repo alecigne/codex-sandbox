@@ -66,14 +66,15 @@ the shared app-server daemon. Normal interactive work and saved-session
 commands such as ~resume~ and ~fork~ remain available.
 
 To launch with an empty, disposable workspace and no host working
-directory mounted, use the explicit ~--empty-workspace~ option:
+directory mounted, use ~--empty-workspace~ or its short form ~-e~:
 
 #+begin_src bash
   ~/src/codex-sandbox/run.bash --empty-workspace
+  sbx -e
 #+end_src
 
 The launcher never infers a working directory from the current
-directory. Calling it without either ~--empty-workspace~ or at least
+directory. Calling it without either ~--empty-workspace~ (~-e~) or at least
 one directory is an error. Arguments after ~--~ can also be used in
 empty-workspace mode.
 
@@ -114,7 +115,7 @@ For example:
   just configure-signing             # Configure signed commits in this clone
   just pdf                           # Render docs/codex-sandbox.pdf
   just build                         # Build or refresh without launching
-  just run --empty-workspace         # Launch without host workspace mounts
+  just run -e                        # Launch without host workspace mounts
   just run ~/src/my-project          # Launch Codex
   just containers                    # List running sandbox containers
   just shell                         # Open Bash in the running container

@@ -23,15 +23,17 @@ Usage:
   run.bash --build
   run.bash DIRECTORY... [-- CODEX_ARGUMENTS...]
   run.bash --empty-workspace [-- CODEX_ARGUMENTS...]
+  run.bash -e [-- CODEX_ARGUMENTS...]
 
 Start an interactive Codex CLI in a container. Each directory is mounted below
-/workspace using its basename. Use --empty-workspace to mount no host working
+/workspace using its basename. Use --empty-workspace (or -e) to mount no host working
 directories; omitting both directories and that flag is an error. Use
 --build to build the image without launching Codex.
 
 Examples:
   ~/src/codex-sandbox/run.bash --build
   ~/src/codex-sandbox/run.bash --empty-workspace
+  sbx -e
   ~/src/codex-sandbox/run.bash ~/src/my-project
   ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
   ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-6.1-sol
@@ -62,7 +64,7 @@ while [[ $# -gt 0 ]]; do
       echo "--build must be used without arguments." >&2
       exit 2
       ;;
-    --empty-workspace)
+    --empty-workspace|-e)
       EMPTY_WORKSPACE=true
       shift
       ;;
@@ -84,13 +86,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "${EMPTY_WORKSPACE}" == true && ${#DIRECTORIES[@]} -ne 0 ]]; then
-  echo "--empty-workspace cannot be combined with workspace directories." >&2
+  echo "--empty-workspace (-e) cannot be combined with workspace directories." >&2
   exit 2
 fi
 
 if [[ "${EMPTY_WORKSPACE}" == false && ${#DIRECTORIES[@]} -eq 0 ]]; then
   echo "At least one workspace directory must be specified." >&2
-  echo "Use --empty-workspace to launch without mounting a host working directory." >&2
+  echo "Use --empty-workspace (-e) to launch without mounting a host working directory." >&2
   exit 2
 fi
 
