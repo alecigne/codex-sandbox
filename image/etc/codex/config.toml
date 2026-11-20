@@ -1,0 +1,20 @@
+# Keep conversation-scoped writes and the Linux sandbox, while allowing normal
+# development inside the outer Podman boundary. Leave approval policy unchanged.
+default_permissions = "container-workspace"
+
+[permissions.container-workspace]
+extends = ":workspace"
+
+[permissions.container-workspace.filesystem.":workspace_roots"]
+".git" = "write"
+
+# Container-owned tools and caches, separate from Codex credentials and settings.
+[permissions.container-workspace.filesystem]
+"~/.cache" = "write"
+"~/.local" = "write"
+"~/.sdkman" = "write"
+"~/.elan" = "write"
+"~/go" = "write"
+
+[permissions.container-workspace.network]
+enabled = true

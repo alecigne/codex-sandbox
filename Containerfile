@@ -10,6 +10,11 @@ ARG CODEX_VERSION=0.169.0
 ARG CODEX_LINUX_AMD64_SHA256=3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0
 ARG CODEX_LINUX_ARM64_SHA256=c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f
 
+# Gum (workspace menus)
+ARG GUM_VERSION=2.0.2
+ARG GUM_LINUX_AMD64_SHA256=d842e06d93dbed90af48cb8dd10698db6f22e331fc40346bb37bbc753109edc2
+ARG GUM_LINUX_ARM64_SHA256=8ebf8b54ec1e8c81f2bb58b59ff9b70998186a4d11375f0cf357b80e0ccfa1d5
+
 # ast-grep
 ARG AST_GREP_VERSION=0.51.2
 
@@ -95,6 +100,23 @@ RUN npm install --global \
         "@ast-grep/cli@${AST_GREP_VERSION}" \
     && ast-grep --version \
     && npm cache clean --force
+
+# Install checksum-verified Gum for the container's Bash workspace menu.
+RUN architecture="$(dpkg --print-architecture)" \
+    && case "${architecture}" in \
+        amd64) gum_arch=x86_64; gum_sha256="${GUM_LINUX_AMD64_SHA256}" ;; \
+        arm64) gum_arch=arm64; gum_sha256="${GUM_LINUX_ARM64_SHA256}" ;; \
+        *) echo "Unsupported Gum architecture: ${architecture}" >&2; exit 1 ;; \
+    esac \
+    && gum_archive="gum_${GUM_VERSION}_Linux_${gum_arch}.tar.gz" \
+    && curl --fail --show-error --silent --location \
+        "https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/${gum_archive}" \
+        --output "/tmp/${gum_archive}" \
+    && printf '%s  %s\n' "${gum_sha256}" "/tmp/${gum_archive}" | sha256sum --check --strict - \
+    && tar --extract --gzip --file "/tmp/${gum_archive}" --directory /usr/local/bin \
+        --strip-components=1 "gum_${GUM_VERSION}_Linux_${gum_arch}/gum" \
+    && rm "/tmp/${gum_archive}" \
+    && gum --version
 
 # The runtime root is read-only, so install all three browsers' Linux libraries
 # at build time. Browser binaries belong in the persistent runtime cache.
@@ -221,11 +243,13 @@ RUN export SDKMAN_DIR=/opt/sdkman \
     && sed -i 's/^sdkman_healthcheck_enable=.*/sdkman_healthcheck_enable=false/' /opt/sdkman/etc/config \
     && chown -R codex:codex /opt/sdkman
 
-COPY toolchain-profile.sh /etc/profile.d/codex-toolchains.sh
-COPY home/ /usr/local/share/codex-sandbox/home/
-COPY container-entrypoint.bash /usr/local/bin/container-entrypoint
+COPY image/etc/profile.d/codex-toolchains.sh /etc/profile.d/codex-toolchains.sh
+COPY image/etc/codex/config.toml /etc/codex/config.toml
+COPY image/usr/local/share/codex-sandbox/home/ /usr/local/share/codex-sandbox/home/
+COPY image/usr/local/bin/container-entrypoint /usr/local/bin/container-entrypoint
+COPY image/usr/local/bin/codex-sandbox-menu /usr/local/bin/codex-sandbox-menu
 
-RUN chmod 0755 /usr/local/bin/container-entrypoint
+RUN chmod 0755 /usr/local/bin/container-entrypoint /usr/local/bin/codex-sandbox-menu
 
 ENV HOME=/home/codex \
     ANSIBLE_LOCAL_TEMP=/tmp \

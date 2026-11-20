@@ -1,22 +1,23 @@
 # Codex sandbox environment
 
-## Workspace layout
+## Container environment
 
-You are working inside a disposable containerized environment. `/workspace` is
-an ephemeral workspace root. Each immediate child is an independently selected
-host working directory. Project changes persist on the host only when they are
-made inside those selected children; files created directly in `/workspace`
-disappear when the container exits.
-
-Before modifying files in a child directory, find and read the
-`AGENTS.override.md` or `AGENTS.md` instructions that apply from that child root
-through the target directory. Keep those instructions scoped to that child and
-do not apply them to sibling directories.
+You are working in a disposable container. Selected host project directories
+are mounted beneath `/workspace`; changes inside those mounts persist on the
+host. Other files created under `/workspace`, `/tmp`, and `/run` disappear when
+the container exits.
 
 The container root filesystem is read-only. `/home/codex` is a private
-persistent volume for container-owned state. The selected projects,
-`/workspace`, `/tmp`, and `/run` are also writable with different persistence
-and size limits. The host home and Podman socket are not mounted.
+persistent volume for container-owned state. The host home and Podman socket
+are not mounted. Codex's own sandbox remains enabled.
+
+The image's default `container-workspace` permission profile allows network
+access, writes to `.git` in the conversation's workspace roots, and writes to
+`~/.cache`, `~/.local`, `~/.sdkman`, `~/.elan`, and `~/go`. Routine downloads,
+tool installation into those directories, and Git writes do not need sandbox
+escalation under this profile. Other mounted projects are not automatically
+writable. `.agents`, `.codex`, and `.aws` remain protected. User configuration
+and explicit CLI options can select different permissions.
 
 ## Available tools
 
@@ -33,25 +34,23 @@ and size limits. The host home and Podman socket are not mounted.
   be used directly or through Pandoc with `--pdf-engine=typst`.
 - Git, ShellCheck, `just`, Node.js, and npm are installed. npm's cache is
   disposable under `/tmp`; persistent user-global packages install below
-  `/home/codex/.local` and may require approval.
+  `/home/codex/.local`.
 - Playwright system libraries for headless Chromium, Firefox, and WebKit are
   installed. Use the project's Playwright dependency and run
   `npx playwright install chromium firefox webkit` for matching browsers,
   cached in the persistent home. Do not use `install-deps` or `--with-deps`
-  against the read-only image. Downloads, cache writes, and local browser tests
-  may require approval. Save reports and traces inside the selected project.
+  against the read-only image. Save reports and traces inside the selected
+  project.
 - Go and tools installed with `go install` are available on `PATH`. Go build
-  and module caches are disposable under `/tmp`; persistent tool installation
-  may require approval.
+  and module caches are disposable under `/tmp`; installed tools persist in
+  `/home/codex/go`.
 - Repeater is installed for validating Markdown spaced-repetition cards. Run
   `repeater check PATH --plain` as directed by applicable project instructions
   or skills.
 - Use uv to manage Python versions, environments, and tools. Its cache is
-  disposable under `/tmp`; persistent Python and tool installation may require
-  approval.
+  disposable under `/tmp`; installed Python versions and tools persist under
+  `/home/codex/.local`.
 - Use SDKMAN to manage Java versions and Elan to manage Lean toolchains.
-- Commands that download dependencies or toolchains may require network
-  approval.
 
 ## Git commit timestamps
 

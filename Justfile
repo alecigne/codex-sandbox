@@ -6,9 +6,11 @@ default:
 
 # Run static checks that do not require Podman.
 check:
-    bash -n run.bash container-entrypoint.bash toolchain-profile.sh
-    shellcheck run.bash container-entrypoint.bash toolchain-profile.sh
+    for script in run.bash image/usr/local/bin/* image/etc/profile.d/*.sh tests/*.bash; do bash -n "$script" || exit; done
+    shellcheck run.bash image/usr/local/bin/* image/etc/profile.d/*.sh tests/*.bash
     ./run.bash --help >/dev/null
+    bash tests/launcher.bash
+    bash tests/workspace-menu.bash
     git diff --check
 
 # Configure this clone to sign commits with the project owner's GPG key.

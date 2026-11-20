@@ -1,94 +1,209 @@
 #+title: Codex sandbox
 
-A personal development environment for Codex CLI, powered by rootless
+My personal development environment for Codex CLI, powered by rootless
 Podman.
 
-It keeps the container boundary and Codex's own Linux sandbox enabled:
-Podman exposes only explicitly selected working directories, and Codex
-runs generated commands through ~bubblewrap~ and seccomp in
-~workspace-write~ mode.
+It serves three roles:
+
+1. *Workspace management*: expose only selected working directories
+   from the host system to Codex. The rest of the host filesystem is
+   not mounted at all.
+
+2. *Codex customization*: set system-wide permission defaults and
+   provide global ~AGENTS.md~ instructions and personal skills.
+
+3. *Controlled environment*: provide selected development tools and
+   toolchains, independently of those installed on the host.
+
+Both the container boundary and Codex's own Linux sandbox remain
+enabled.
 
 This README is also available [[file:docs/codex-sandbox.pdf][as a PDF]].
 
-* AI-assisted development
-
-Development is assisted by Codex CLI under close human direction. Each
-new version of ~codex-sandbox~ is developed from within the current
-version, so the project also exercises the environment it builds.
-
 * Requirements
 
-- Rootless Podman
-- Bash and standard GNU command-line tools
-- Unprivileged user namespaces on the host
-- ~just~ on the host if you want to use the repository recipes
-- ShellCheck on the host if you want to run ~just check~
+On the host system:
+
+- Rootless Podman.
+
+- Bash and standard GNU command-line tools.
+
+- Unprivileged user namespaces.
+
+- Python 3 and PyYAML if you use a configuration file (see below).
+  On Debian-based systems, install ~python3-yaml~.
+
+- ~just~ if you want to use the repository [[https://github.com/casey/just][Just]] recipes.
+
+- ShellCheck on the host if you want to run ~just check~.
 
 Tools used inside the sandbox are installed in the image; host
 installations are not exposed to the container.
 
 * Usage
 
-** Launch Codex
-
-Pass one or more host working directories to the launcher:
+~codex-sandbox~'s launcher is the ~run.bash~ Bash script. For a better
+experience, create a symlink in a directory already on the host's
+~PATH~ (~/bin in this example, if configured):
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash ~/src/my-project
+  ln --symbolic /path/to/codex-sandbox/run.bash ~/bin/codex-sandbox
 #+end_src
 
-For a shorter command, create a symlink from a directory on the host's
-~PATH~:
+All commands below will assume ~codex-sandbox~ is available.
 
-#+begin_src bash
-  ln --symbolic ~/src/codex-sandbox/run.bash ~/bin/sbx
-  sbx ~/src/my-project
+** Workspace
+
+Before running ~codex-sandbox~ commands, it is important to understand
+the /workspace/.
+
+The workspace brings selected host directories together beneath
+~/workspace~ inside the container. The directories remain in their
+original host locations; changes inside their mounts persist on the
+host. In contrast, files created directly under ~/workspace~ disappear
+when the container exits.
+
+The optional configuration file at
+~$HOME/.config/codex-sandbox/config.yaml~ defines the workspace by
+assigning each directory a name under ~workspace~:
+
+#+begin_src yaml
+  workspace:
+    codex-sandbox: ~/src/codex-sandbox
+    project-1: ~/src/project-1
+    project-2: ~/src/project-2
 #+end_src
 
-The image is built automatically the first time. Codex starts in
-~/workspace~, with each selected directory mounted below it using its
-basename. For example:
+This describes the following directory layout inside the container:
+
+#+begin_example
+  /workspace/
+  ├── codex-sandbox/  (mounted from ~/src/codex-sandbox)
+  ├── project-1/      (mounted from ~/src/project-1)
+  └── project-2/      (mounted from ~/src/project-2)
+#+end_example
+
+Names must start with a letter or digit and contain only letters,
+digits, dots, underscores, or hyphens. The ~workspace~ mapping must
+contain at least one directory, and each host directory must have one
+name. Paths may be absolute, start with ~~/~, or be relative to the
+configuration file's directory.
+
+If ~$XDG_CONFIG_HOME~ is set, the default file is
+~$XDG_CONFIG_HOME/codex-sandbox/config.yaml~. The
+~CODEX_SANDBOX_CONFIG~ environment variable selects another file.
+
+*Important*: if you resume a previous Codex session, you remain
+responsible for mounting the right projects in the workspace!
+
+** Launching Codex
+
+The launcher's role is to prepare the container and its mounts, then
+runs the regular Codex CLI.
+
+In every launch mode, leaving Codex with ~/quit~ or ~/exit~ ends the
+container. The launcher menu is only used before Codex starts.
+
+*** Empty workspace
+:PROPERTIES:
+:CREATED:  [2026-11-14 Sat 14:48]
+:END:
+
+The simplest use case is to use ~--empty-workspace~ or ~-e~ to ignore
+the workspace projects and start directly in ~/workspace~, with no
+host projects mounted:
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash ~/src/frontend ~/src/backend
+  # On the host (either form):
+  codex-sandbox --empty-workspace
+  codex-sandbox -e
+
+  # Equivalent Codex command inside the container:
+  codex -C /workspace
 #+end_src
 
-This creates ~/workspace/frontend~ and ~/workspace/backend~; neither
-directory is treated as primary. Selected directory basenames must be
-unique within a launch.
+This is useful for brainstorming or asking quick questions. Files
+created under ~/workspace~ disappear when the container exits, but
+Codex login, conversation history, and other state in the private home
+volume persist. Leaving Codex exits the container.
 
-Paths containing spaces, commas, or double quotes are supported; the
-launcher quotes the mount fields for Podman's CSV parser.
+*** Working directories
 
-The launcher always passes ~--no-daemon~ to Codex. Each container
-therefore runs its CLI session directly instead of starting or using
-the shared app-server daemon. Normal interactive work and saved-session
-commands such as ~resume~ and ~fork~ remain available.
-
-To launch with an empty, disposable workspace and no host working
-directory mounted, use ~--empty-workspace~ or its short form ~-e~:
+Pass a working directory to start a new conversation directly about
+this project:
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash --empty-workspace
-  sbx -e
+  # On the host:
+  codex-sandbox ~/src/project-1
+
+  # Equivalent Codex command inside the container:
+  codex -C /workspace/project-1
 #+end_src
 
-The launcher never infers a working directory from the current
-directory. Calling it without either ~--empty-workspace~ (~-e~) or at least
-one directory is an error. Arguments after ~--~ can also be used in
-empty-workspace mode.
-
-Arguments after ~--~ are passed to Codex:
+When multiple directories are passed, the first is the starting
+directory. Each additional directory is passed with ~--add-dir~, so
+the conversation can edit those projects too:
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash ~/src/my-project -- --model gpt-6.1-sol
+  # On the host:
+  codex-sandbox ~/src/project-1 ~/src/project-2
+
+  # Equivalent Codex command inside the container:
+  codex -C /workspace/project-1 --add-dir /workspace/project-2
 #+end_src
 
-Building and launching are separate operations. To build or refresh
-the image without launching Codex, run ~--build~ by itself:
+Other registered projects stay mounted, but are not automatically
+added to the new conversation's writable scope.
+
+Explicit paths reuse their registered names.
+
+Note that passing directories that are not already registered as
+workspace projects will simply register them for the duration of the
+session.
+
+*** Menu
+
+With a workspace configured, run ~codex-sandbox~ without any arguments
+to open the menu:
 
 #+begin_src bash
-  ~/src/codex-sandbox/run.bash --build
+  codex-sandbox
+#+end_src
+
+This will open a menu from inside the container, offering the same
+possibilities as the CLI commands above but limited to the current
+workspace projects.
+
+- *New conversation* asks for a primary project and optional
+  additional writable projects. It uses the same ~codex -C~ and
+  ~--add-dir~ commands shown above. With only one registered project,
+  the additional-project checklist is skipped.
+
+- *Resume* opens Codex's Agent command center to select a saved
+  conversation. This runs the following inside the container, without
+  forcing the saved conversation's directory or adding writable roots:
+
+  #+begin_src bash
+    cd /workspace
+    codex agents
+  #+end_src
+
+- *Quit* exits the container without starting Codex.
+
+Without a configuration file, running without arguments reports an
+error. An invalid file or an unavailable registered directory also
+stops a normal launch; ~--empty-workspace~ bypasses the file entirely.
+
+** Codex arguments
+
+Use ~--~ to bypass the launcher's menu and pass everything after it
+directly to Codex. Working directories are optional: Codex starts in
+the first explicit directory, otherwise in ~/workspace~. All
+configured workspace projects in your config file remain mounted.
+
+#+begin_src bash
+  codex-sandbox -- --model gpt-6.1-sol
+  codex-sandbox ~/src/my-project -- --model gpt-6.1-sol
 #+end_src
 
 ** Just recipes
@@ -96,17 +211,17 @@ the image without launching Codex, run ~--build~ by itself:
 The ~Justfile~ wraps the common repository workflows. Run ~just~ at
 any time to list the available recipes.
 
-|---------------------+---------------------------------------------------------------------------|
-| Recipe              | Action                                                                    |
-|---------------------+---------------------------------------------------------------------------|
-| ~check~             | Run Bash syntax checks, ShellCheck, launcher help, and ~git diff --check~ |
-| ~configure-signing~ | Configure this clone to sign commits with the owner's GPG key             |
-| ~pdf~               | Render this README as a styled PDF through Pandoc and Typst               |
-| ~build~             | Build or refresh the image without launching Codex                        |
-| ~run ARGS...~       | Forward arguments to ~run.bash~ and launch Codex                          |
-| ~containers~        | List running containers created from the sandbox image                    |
-| ~shell [CONTAINER]~ | Open a login Bash shell in a running sandbox container                    |
-|---------------------+---------------------------------------------------------------------------|
+|---------------------+----------------------------------------------------------------------------------|
+| Recipe              | Action                                                                           |
+|---------------------+----------------------------------------------------------------------------------|
+| ~check~             | Run Bash syntax checks, ShellCheck, launcher stub checks, and ~git diff --check~ |
+| ~configure-signing~ | Configure this clone to sign commits with the owner's GPG key                    |
+| ~pdf~               | Render this README as a styled PDF through Pandoc and Typst                      |
+| ~build~             | Build or refresh the image without launching Codex                               |
+| ~run ARGS...~       | Forward arguments to ~run.bash~ and launch Codex                                 |
+| ~containers~        | List running containers created from the sandbox image                           |
+| ~shell [CONTAINER]~ | Open a login Bash shell in a running sandbox container                           |
+|---------------------+----------------------------------------------------------------------------------|
 
 For example:
 
@@ -115,6 +230,7 @@ For example:
   just configure-signing             # Configure signed commits in this clone
   just pdf                           # Render docs/codex-sandbox.pdf
   just build                         # Build or refresh without launching
+  just run                           # Open the workspace menu
   just run -e                        # Launch without host workspace mounts
   just run ~/src/my-project          # Launch Codex
   just containers                    # List running sandbox containers
@@ -135,76 +251,105 @@ separator for Codex arguments:
   just run ~/src/my-project -- --model gpt-6.1-sol
 #+end_src
 
-* Image construction
+* Building the image
+:PROPERTIES:
+:CREATED:  [2026-11-14 Sat 15:02]
+:END:
+
+The image is built automatically if it does not exist. To build or
+refresh it without starting Codex:
+
+#+begin_src bash
+  codex-sandbox --build
+#+end_src
+
+Rebuild to pick up changes to the image's tools, container scripts, or
+home template.
+
+The first launch after a build may be slower: with native OverlayFS,
+Podman prepares the image's UID/GID mapping for ~--userns=keep-id~.
+Subsequent launches reuse that preparation. See Podman's [[https://github.com/podman-container-tools/podman/blob/main/docs/tutorials/performance.md#choosing-a-storage-driver][performance
+guide]].
 
 The image is built from ~debian:trixie-slim~ and tagged
-~codex-sandbox:local~. The ~Containerfile~:
-
-1. Creates the unprivileged ~codex~ account with UID/GID 1000,
-   preserving compatibility with existing persistent home volumes.
-2. Installs the Debian-packaged system and development tools.
-3. Installs the pinned, checksum-verified official Node.js LTS archive
-   with its bundled npm, then the pinned ast-grep release and Playwright
-   browser system dependencies.
-4. Installs the pinned, checksum-verified standalone Codex CLI package.
-5. Installs uv from a versioned, checksum-verified installer.
-6. Installs the checksum-verified official Go toolchain for the image
-   architecture.
-7. Installs the checksum-verified official Repeater CLI for the image
-   architecture.
-8. Installs the checksum-verified official Typst CLI for the image
-   architecture.
-9. Creates a checksum-verified SDKMAN seed for new home volumes.
-10. Copies the repository's custom home and entrypoint into the image.
-11. Switches permanently to the unprivileged ~codex~ user.
+~codex-sandbox:local~. See the [[file:Containerfile][Containerfile]] for more details.
 
 The resulting container root filesystem is read-only at
 runtime. Writable locations are mounted explicitly by ~run.bash~.
-
-To build or refresh the image without launching Codex:
-
-#+begin_src bash
-  just build
-  # or
-  ./run.bash --build
-#+end_src
 
 Every build uses Podman's ~--pull=newer~ policy. This checks for a
 newer ~debian:trixie-slim~ base so current Debian package updates are
 incorporated when available. Node.js and the other explicitly pinned
 tools are updated by changing their build arguments and checksums.
 
-* Custom home
+* Filesystem and persistence
 
-The repository's sparse ~home/~ directory is the image-managed portion
-of ~/home/codex~.
+|-------------------------------------+-----------------------------+-----------------------------|
+| Location                            | Backing                     | Lifetime                    |
+|-------------------------------------+-----------------------------+-----------------------------|
+| Selected ~/workspace/NAME~ children | Optional host bind mounts   | Persists on the host        |
+| ~/workspace~ root                   | 1 GiB private tmpfs         | Removed with the container  |
+| ~/home/codex~                       | ~codex-sandbox-home~ volume | Persists across containers  |
+| ~/tmp~                              | 1 GiB private tmpfs         | Removed with the container  |
+| ~/run~                              | 64 MiB private tmpfs        | Removed with the container  |
+| ~/dev/shm~                          | 1 GiB private shared memory | Removed with the container  |
+| Container root                      | Read-only image             | Replaced with the container |
+|-------------------------------------+-----------------------------+-----------------------------|
 
-During the image build, this tree is copied to
-~/usr/local/share/codex-sandbox/home~. At every container start, the
-entrypoint overlays it onto ~/home/codex~. Matching paths are
-refreshed from the image; files absent from the repository template
-are left untouched.
+Files written directly to the root of the workspace (~/workspace~)
+disappear when the container exits. Only changes inside selected child
+directories persist on the host. In ~--empty-workspace~ mode, no host
+working directory is mounted and every file created below ~/workspace~
+is disposable.
+
+** Custom home
+
+The build installs ~image/usr/local/share/codex-sandbox/home/~ as
+~/usr/local/share/codex-sandbox/home/~. At every container start, the
+entrypoint overlays this template onto ~/home/codex~. Matching paths
+are refreshed from the image; files absent from the repository
+template are left untouched.
 
 This separates two kinds of home data:
 
-- Repository-managed configuration comes from ~home/~ and changes
+- Repository-managed configuration comes from the home template and changes
   through an image rebuild.
 
 - Runtime state such as Codex credentials, sessions, user-installed
   tools, and downloaded toolchains remains in the persistent
   ~codex-sandbox-home~ volume.
 
-Removing a path from ~home/~ does not remove a copy already present in
+Removing a path from the home template does not remove a copy already present in
 the persistent volume. Deletion requires an explicit migration or
 recreation of the volume.
 
-** Global instructions and skills
+** Removing persistent state
 
-The custom home provides a natural place for global Codex instructions
-and deliberate personal skills:
+After every sandbox container has stopped, the persistent home can be
+removed:
+
+#+begin_src bash
+  podman volume rm codex-sandbox-home
+#+end_src
+
+This permanently deletes Codex credentials and sessions, user-global
+npm packages, uv-managed Python versions and tools, Go-installed
+tools, Playwright browser binaries, cached Typst Universe packages,
+SDKMAN and its installed JDKs, and Elan's downloaded Lean toolchains and
+configuration. It does not
+affect selected host working directories.
+
+* Configuration
+
+The image installs ~image/etc/codex/config.toml~ at
+~/etc/codex/config.toml~ inside the container. This file selects the
+~container-workspace~ permission profile by default. Rebuild the image
+to apply changes to this file.
+
+The custom home hosts other global Codex instructions and skills:
 
 #+begin_example
-  home/
+  image/usr/local/share/codex-sandbox/home/
   ├── .agents/
   │   └── skills/
   │       ├── build-silverbullet-wiki/
@@ -223,11 +368,15 @@ and deliberate personal skills:
 This makes ~codex-sandbox~ not only a development environment, but
 also a convenient Git-backed set of instructions for Codex.
 
-The current ~home/.codex/AGENTS.md~ explains the workspace layout and
-installed tools to every Codex session and routes polished PDF
-requests to the personal skill. Project-level ~AGENTS.md~ files remain
-scoped to their own selected directories and take precedence where
-they apply.
+The template's ~.codex/AGENTS.md~ explains the workspace layout and
+installed tools to every Codex session and routes PDF requests to the
+corresponding skill. Project-level ~AGENTS.md~ files remain scoped to
+their own selected directories and take precedence where they apply.
+
+** Skills
+:PROPERTIES:
+:CREATED:  [2026-11-20 Fri 20:44]
+:END:
 
 The ~publish-project-pdf~ skill supplies the on-demand workflow for
 creating or refining polished PDFs from repository documentation. Its
@@ -255,31 +404,32 @@ the release you intend to install.
 
 The image includes the following user-facing tools:
 
-|------------------+------------------------------------------+----------------------------|
-| Tool             | Purpose                                  | Installation               |
-|------------------+------------------------------------------+----------------------------|
-| Codex CLI        | Interactive coding agent                 | Verified official archive  |
-| Node.js          | JavaScript runtime                       | Verified official archive  |
-| npm              | JavaScript package manager               | Bundled with Node.js       |
-| Playwright libraries | Headless Chromium, Firefox, and WebKit | Pinned dependency installer |
-| ast-grep         | Syntax-aware search and rewriting        | Pinned npm package         |
-| ripgrep (~rg~)   | Fast textual search                      | Debian package             |
-| jq               | JSON queries and transformations         | Debian package             |
-| Ansible Core     | Local playbook validation and reference  | Debian package             |
-| Ansible Lint     | Static checks for Ansible content        | Debian package             |
-| yamllint         | YAML syntax and style checks             | Debian package             |
-| Git              | Version control                          | Debian package             |
-| ShellCheck       | Shell script analysis                    | Debian package             |
-| just             | Repository command runner                | Debian package             |
-| Pandoc           | Markdown and document conversion         | Debian package             |
-| Typst            | Document typesetting and PDF generation  | Verified official archive  |
-| uv               | Python versions, environments, and tools | Verified installer         |
-| Go               | Go compiler and development tools        | Verified official archive  |
-| Repeater         | Markdown spaced-repetition CLI            | Verified official archive  |
-| SDKMAN           | Java versions and SDKs                   | Verified seed installation |
-| Elan             | Lean toolchain manager                   | Debian package             |
-| curl, xz, zip    | Downloads and archive handling           | Debian packages            |
-|------------------+------------------------------------------+----------------------------|
+|----------------------+------------------------------------------+-----------------------------|
+| Tool                 | Purpose                                  | Installation                |
+|----------------------+------------------------------------------+-----------------------------|
+| Codex CLI            | Interactive coding agent                 | Verified official archive   |
+| Gum                  | Workspace menus                          | Verified official archive   |
+| Node.js              | JavaScript runtime                       | Verified official archive   |
+| npm                  | JavaScript package manager               | Bundled with Node.js        |
+| Playwright libraries | Headless Chromium, Firefox, and WebKit   | Pinned dependency installer |
+| ast-grep             | Syntax-aware search and rewriting        | Pinned npm package          |
+| ripgrep (~rg~)       | Fast textual search                      | Debian package              |
+| jq                   | JSON queries and transformations         | Debian package              |
+| Ansible Core         | Local playbook validation and reference  | Debian package              |
+| Ansible Lint         | Static checks for Ansible content        | Debian package              |
+| yamllint             | YAML syntax and style checks             | Debian package              |
+| Git                  | Version control                          | Debian package              |
+| ShellCheck           | Shell script analysis                    | Debian package              |
+| just                 | Repository command runner                | Debian package              |
+| Pandoc               | Markdown and document conversion         | Debian package              |
+| Typst                | Document typesetting and PDF generation  | Verified official archive   |
+| uv                   | Python versions, environments, and tools | Verified installer          |
+| Go                   | Go compiler and development tools        | Verified official archive   |
+| Repeater             | Markdown spaced-repetition CLI           | Verified official archive   |
+| SDKMAN               | Java versions and SDKs                   | Verified seed installation  |
+| Elan                 | Lean toolchain manager                   | Debian package              |
+| curl, xz, zip        | Downloads and archive handling           | Debian packages             |
+|----------------------+------------------------------------------+-----------------------------|
 
 ~bubblewrap~ is also installed as a runtime dependency of Codex's
 Linux sandbox.
@@ -322,10 +472,9 @@ directory is on ~PATH~:
 #+end_src
 
 The npm download cache lives below ~/tmp/codex-npm-cache~ and is
-removed with the container. Package downloads may require network
-approval, and persistent global installation may require filesystem
-approval when Codex runs these commands. Image-managed global packages
-remain installed system-wide.
+removed with the container. The default permission profile permits
+package downloads and installation below ~/home/codex/.local~.
+Image-managed global packages remain installed system-wide.
 
 *** Updating Node.js and npm
 
@@ -362,8 +511,8 @@ Browsers are cached by default in ~/home/codex/.cache/ms-playwright~
 and persist across containers. Run the install command again after
 upgrading the project's Playwright version. Run the application
 inside the container and use its loopback URL in the test configuration.
-Downloads, persistent cache writes, and local browser tests may
-require Codex approval.
+The default permission profile permits downloads, persistent browser
+cache writes, and local browser tests.
 
 The root filesystem is read-only: system dependencies are installed
 only during the image build. Update ~PLAYWRIGHT_VERSION~ in
@@ -390,9 +539,8 @@ virtual environments remain in their selected working
 directories. ~UV_LINK_MODE~ is set to ~copy~ because the cache and
 project environments are on different filesystems.
 
-Python and package downloads may require network approval, and
-persistent Python or tool installation may require filesystem approval
-when Codex runs these commands.
+The default permission profile permits downloads and persistent Python
+or tool installation below ~/home/codex/.local~.
 
 *** Updating uv
 
@@ -455,9 +603,9 @@ survive container replacement:
 Module and build caches live below ~/tmp/codex-go-cache~ and are
 removed with the container. Installed tools live below
 ~/home/codex/go~ in the persistent volume. Project source and vendor
-directories remain in the selected working directory. Downloads may
-require network approval, and persistent tool installation may require
-filesystem approval when Codex runs these commands.
+directories remain in the selected working directory. The default
+permission profile permits downloads and installation below
+~/home/codex/go~.
 
 *** Updating Go
 
@@ -497,12 +645,13 @@ SDKMAN environment file:
 #+end_src
 
 Edit ~.sdkmanrc~ to select the desired version, then activate it with
-~sdk env~. Listing or downloading SDKs may require network approval
-when Codex runs the command.
+~sdk env~. The default permission profile permits SDK listings,
+downloads, and installation below ~/home/codex/.sdkman~.
 
-SDKMAN's automatic startup connectivity check is disabled because
-Codex commands do not have network access by default. The entrypoint
-enforces this setting for both new and existing home volumes.
+SDKMAN's automatic startup connectivity check remains disabled to avoid
+an unnecessary network request for every Bash command and to support
+user-selected offline profiles. The entrypoint enforces this setting
+for both new and existing home volumes.
 
 *** Updating SDKMAN
 
@@ -556,7 +705,8 @@ is present as an authoring and validation tool, not as authorization to deploy.
 
 Project-specific collections remain declared in each project's
 ~requirements.yml~ and can be installed with ~ansible-galaxy~ when requested.
-Collection downloads may require network approval.
+The default profile permits downloads; install collections into a
+selected project directory so the destination is writable.
 
 ** Lean 4 with Elan
 
@@ -578,8 +728,8 @@ first:
   lean --version
 #+end_src
 
-Toolchain and Lake dependency downloads may require network approval
-when Codex runs them.
+The default permission profile permits toolchain downloads into
+~/home/codex/.elan~ and Lake dependencies in the selected project.
 
 ** Publishing
 
@@ -597,8 +747,9 @@ Typst can also compile ~.typ~ sources directly:
   typst compile report.typ report.pdf
 #+end_src
 
-Typst Universe packages are downloaded on demand and cached in the
-persistent home volume. Their first use may require network approval.
+Typst Universe packages are downloaded on demand and cached below
+~/home/codex/.cache~ in the persistent home volume. The default profile
+permits these downloads and cache writes.
 Prefer project-local templates when a build must work offline or use
 only repository-reviewed inputs.
 
@@ -618,31 +769,6 @@ release metadata before an update:
 Update ~TYPST_VERSION~, ~TYPST_LINUX_AMD64_SHA256~, and
 ~TYPST_LINUX_ARM64_SHA256~ together in ~Containerfile~, then rebuild
 the image.
-
-* Filesystem and persistence
-
-|-------------------------------------+-----------------------------+-----------------------------|
-| Location                            | Backing                     | Lifetime                    |
-|-------------------------------------+-----------------------------+-----------------------------|
-| Selected ~/workspace/NAME~ children | Optional host bind mounts   | Persists on the host        |
-| ~/workspace~ root                   | 1 GiB private tmpfs         | Removed with the container  |
-| ~/home/codex~                       | ~codex-sandbox-home~ volume | Persists across containers  |
-| ~/tmp~                              | 1 GiB private tmpfs         | Removed with the container  |
-| ~/run~                              | 64 MiB private tmpfs        | Removed with the container  |
-| ~/dev/shm~                          | 1 GiB private shared memory | Removed with the container  |
-| Container root                      | Read-only image             | Replaced with the container |
-|-------------------------------------+-----------------------------+-----------------------------|
-
-Files written directly to ~/workspace~ disappear when the container
-exits. Only changes inside selected child directories persist on the
-host. In ~--empty-workspace~ mode, no host working directory is
-mounted and every file created below ~/workspace~ is disposable.
-
-The home volume contains Codex login and session state, user-global
-npm packages, uv-managed Python versions and tools, Go-installed
-tools, Playwright browser binaries, cached Typst Universe packages,
-SDKMAN and installed JDKs, and Elan-managed Lean toolchains. The container itself is launched with
-~--rm~; only this volume and selected host directories outlive it.
 
 * Isolation boundary
 
@@ -666,9 +792,16 @@ The outer Podman container:
 - Uses private SELinux relabeling for selected working directories.
 
 Podman's minimal init process runs as PID 1 to forward signals and
-reap orphaned children. Within this boundary, Codex retains its normal
-~bubblewrap~/seccomp sandbox with ~workspace-write~ access and
-approval on demand.
+reap orphaned children. Within this boundary, Codex uses its normal
+~bubblewrap~ and seccomp sandbox with the ~container-workspace~ profile.
+The primary project and explicitly added projects form the conversation's
+writable scope; other mounted projects are not automatically added.
+Within these roots, ~.git~ is writable, so Git commands can change the
+index, branches, configuration, and hooks without sandbox escalation.
+Writes there persist in the host repository. In the container home, the
+profile grants write access to =~/.cache=, =~/.local=, =~/.sdkman=,
+=~/.elan=, and =~/go=.
+Codex's normal configuration precedence and approval behavior still apply.
 
 If commands fail with a ~bwrap~ or namespace error, do not disable the
 Codex sandbox. The host's rootless Podman configuration must support
@@ -677,26 +810,12 @@ unprivileged user namespaces for both isolation layers to work.
 ** Network boundary
 
 Codex needs network access to communicate with OpenAI, so the outer
-container has Podman's normal outbound network access. Commands
-spawned by Codex remain subject to its ~workspace-write~ network
-restrictions and approval policy. No outer egress allowlist is
-currently configured.
-
-* Remove persistent state
-
-After every sandbox container has stopped, the persistent home can be
-removed:
-
-#+begin_src bash
-  podman volume rm codex-sandbox-home
-#+end_src
-
-This permanently deletes Codex credentials and sessions, user-global
-npm packages, uv-managed Python versions and tools, Go-installed
-tools, Playwright browser binaries, cached Typst Universe packages,
-SDKMAN and its installed JDKs, and Elan's downloaded Lean toolchains and
-configuration. It does not
-affect selected host working directories.
+container has Podman's normal outbound network access. The default
+~container-workspace~ profile also permits direct network access for
+commands spawned by Codex, without per-download sandbox escalation.
+Neither layer configures an egress allowlist. This includes access to
+services reachable from the container; configuration overrides can
+select stricter network permissions.
 
 * Releases
 
@@ -713,3 +832,10 @@ version tags yet, the calculation starts at ~v0.0.0~.
 
 Pushes and pull requests do not trigger releases. The workflow does
 not publish packages or container images.
+
+* AI-assisted development
+
+Development of ~codex-sandbox~ is assisted by Codex CLI under my close
+direction. Each new version of ~codex-sandbox~ is developed from
+within the current version, so the project also exercises the
+environment it builds.

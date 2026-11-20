@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+run_codex() {
+  local directory="$1" mode="$2" project
+  shift 2
+  local -a arguments=(--no-daemon)
+  if [[ "${mode}" == new ]]; then
+    arguments+=(--cd "${directory}")
+  fi
+  for project in "$@"; do
+    arguments+=(--add-dir "/workspace/${project}")
+  done
+  arguments+=("${CODEX_ARGUMENTS[@]}")
+  if [[ "${mode}" == resume ]]; then
+    arguments+=(agents)
+  fi
+  # Hand over the container's lifetime to Codex; quitting never reopens the menu.
+  cd -- "${directory}" || return
+  exec codex "${arguments[@]}"
+}
+
+start_new_conversation() {
+  local primary="$1" index selections selection
+  local -a choices=() additional_projects=()
+  for index in "${!PROJECTS[@]}"; do
+    if [[ "${PROJECTS[index]}" != "${primary}" ]]; then
+      choices+=("${PROJECT_LABELS[index]}")
+    fi
+  done
+  if [[ ${#choices[@]} -gt 0 ]]; then
+    # `choose --no-limit` permits an empty set; filter would select the cursor
+    # item on Enter even with no items checked.
+    if ! selections="$(gum choose --no-limit --height 10 --header "Additional writable projects for ${primary} · Enter starts" --selected-prefix '[x] ' --unselected-prefix '[ ] ' --cursor.foreground 6 --header.foreground 6 -- "${choices[@]}")"; then
+      return
+    fi
+    while IFS= read -r selection; do
+      for index in "${!PROJECTS[@]}"; do
+        if [[ "${selection}" == "${PROJECT_LABELS[index]}" && "${PROJECTS[index]}" != "${primary}" ]]; then
+          additional_projects+=("${PROJECTS[index]}")
+          break
+        fi
+      done
+    done <<<"${selections}"
+  fi
+  run_codex "/workspace/${primary}" new "${additional_projects[@]}"
+}
+
+workspace_menu_main() {
+  local label command project_count action selection project candidate
+  # Only container paths and registry names cross this interface; host paths stay
+  # in the launcher. The registry is data, never executable shell configuration.
+  PROJECTS=()
+  PROJECT_LABELS=()
+  while [[ $# -gt 0 && "$1" != -- ]]; do
+    if [[ ! "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ! -d "/workspace/$1" ]]; then
+      echo "Unavailable workspace project: $1" >&2
+      return 2
+    fi
+    PROJECTS+=("$1")
+    printf -v label '%-20s /workspace/%s' "$1" "$1"
+    PROJECT_LABELS+=("${label}")
+    shift
+  done
+  if [[ $# -eq 0 || ${#PROJECTS[@]} -eq 0 ]]; then
+    echo "Usage: codex-sandbox-menu PROJECT... -- [CODEX_ARGUMENTS...]" >&2
+    return 2
+  fi
+  shift
+  CODEX_ARGUMENTS=("$@")
+
+  for command in gum codex; do
+    if ! command -v "${command}" >/dev/null; then
+      echo "Workspace menu requires ${command}; rebuild the sandbox image with --build." >&2
+      return 2
+    fi
+  done
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    echo "The workspace menu requires an interactive terminal. Pass a project explicitly to bypass it." >&2
+    return 2
+  fi
+
+  project_count="${#PROJECTS[@]} projects"
+  if [[ ${#PROJECTS[@]} == 1 ]]; then
+    project_count='1 project'
+  fi
+  while true; do
+    if ! action="$(gum choose --header "codex-sandbox · ${project_count} mounted" --cursor.foreground 6 --header.foreground 6 -- Resume 'New conversation' Quit)"; then
+      return
+    fi
+    case "${action}" in
+      Resume)
+        run_codex /workspace resume
+        ;;
+      'New conversation')
+        if selection="$(gum filter --header 'Choose a project · Esc Esc back' --placeholder 'Search projects…' --height 10 --indicator.foreground 6 --header.foreground 6 -- "${PROJECT_LABELS[@]}")"; then
+          # Esc can return success with an empty result. Only accept registry names.
+          project="${selection%% *}"
+          for candidate in "${PROJECTS[@]}"; do
+            if [[ "${project}" == "${candidate}" ]]; then
+              start_new_conversation "${project}"
+              break
+            fi
+          done
+        fi
+        ;;
+      *) return ;;
+    esac
+  done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  workspace_menu_main "$@"
+fi
