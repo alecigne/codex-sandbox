@@ -4,11 +4,11 @@ set positional-arguments := true
 default:
     @just --list
 
-# Run static checks that do not require Podman.
+# Validate the launcher and image scripts without Podman.
 check:
-    for script in run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh; do bash -n "$script" || exit; done
-    shellcheck run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh
-    ./run.bash --help >/dev/null
+    for script in run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh tests/launcher.bash; do bash -n "$script" || exit; done
+    shellcheck run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh tests/launcher.bash
+    bash tests/launcher.bash
     git diff --check
 
 # Configure this clone to sign commits with the project owner's GPG key.

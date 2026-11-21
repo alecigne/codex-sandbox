@@ -2,105 +2,169 @@
 
 ## Project purpose
 
-This repository builds and launches a secure, CLI-only containerized environment
-for Codex CLI. It is deliberately small and does not use VS Code or Dev
-Container tooling.
+This repository builds and launches a secure, CLI-only containerized
+environment for Codex CLI.
 
 The launcher must preserve two isolation layers:
 
-1. Rootless Podman exposes only the selected project at `/workspace` and a
-   private persistent container home at `/home/codex`.
-2. Codex keeps its normal Linux `bubblewrap`/seccomp sandbox enabled with
-   a profile that extends `:workspace` and approvals requested on demand.
+1. Rootless Podman exposes only the selected projects beneath
+   `/workspace` and a private persistent container home at
+   `/home/codex`.
 
-The bundled execution rules preapprove `git commit` and `git switch` within
-the Podman boundary. Preserve both isolation layers for other commands. Do not
-add the host home, SSH configuration, host environment, or Podman socket as
-container mounts. If unprivileged user namespaces or `bubblewrap` fail, report
-the host prerequisite instead.
+2. Codex keeps its normal Linux `bubblewrap`/seccomp sandbox enabled
+   with a profile that extends `:workspace` and approvals requested on
+   demand.
+
+Bundled execution rules define approval behavior for specific
+commands. Preapproved commands run outside the Codex sandbox within
+the Podman boundary. Add or update rules when the owner requests
+changes.
+
+Do not add the host home, SSH configuration, host environment, or
+Podman socket as container mounts. If unprivileged user namespaces or
+`bubblewrap` fail, report the host prerequisite instead.
 
 ## Repository map
 
-- `Containerfile` builds the Debian-based image and installs Codex CLI,
-  development tools, sandbox dependencies, and SDKMAN.
-- `run.bash` builds the image when needed and launches the disposable Podman
-  container.
-- `Justfile` provides common build, validation, launch, and container-shell
-  commands.
+- `Containerfile` builds the Debian-based image and installs Codex
+  CLI, development tools, sandbox dependencies, and SDKMAN.
+
+- `run.bash` builds the image when needed and launches the disposable
+  Podman container.
+
+- `Justfile` provides common build, validation, launch, and
+  container-shell commands.
+
 - `image/` mirrors the installed paths of repository-managed image files.
-  - `image/etc/codex/config.toml` defines the default Codex permission profile.
-  - `image/usr/local/bin/container-entrypoint` overlays the home template,
-    seeds SDKMAN into the persistent home volume, and executes the requested
-    command.
-  - `image/etc/profile.d/codex-toolchains.sh` restores toolchain paths and
-    loads SDKMAN for Bash commands through `BASH_ENV`.
+
+  - `image/etc/codex/config.toml` defines the default Codex permission
+    profile.
+
+  - `image/usr/local/bin/container-entrypoint` overlays the home
+    template, seeds SDKMAN into the persistent home volume, and
+    executes the requested command.
+
+  - `image/etc/profile.d/codex-toolchains.sh` restores toolchain paths
+    and loads SDKMAN for Bash commands through `BASH_ENV`.
+
   - `image/usr/local/share/codex-sandbox/home/` holds the global Codex
     guidance and personal skills refreshed for every session.
-- `docs/` contains the Pandoc defaults, project-local Typst theme, and tracked
-  PDF generated from `README.org`.
-- `README.org` is the user-facing setup, usage, isolation, and cleanup guide.
+
+- `docs/` contains the Pandoc defaults, project-local Typst theme, and
+  tracked PDF generated from `README.org`.
+
+- `README.org` is the user-facing setup, usage, isolation, and cleanup
+  guide.
 
 ## Design constraints
 
-- Keep the container disposable and its root filesystem read-only. Only the
-  selected project, the Podman-managed home volume, `/tmp`, and `/run` should be
+- Keep the container disposable and its root filesystem
+  read-only. Only the selected projects, the ephemeral `/workspace`
+  root, the Podman-managed home volume, `/tmp`, and `/run` should be
   writable.
-- Keep the persistent volume limited to container-owned state such as Codex
-  credentials/session data, SDKMAN, and installed JDKs.
+
+- Keep the persistent volume limited to container-owned state such as
+  Codex credentials/session data, SDKMAN, and installed JDKs.
+
 - Keep the process unprivileged: preserve `--userns=keep-id`, dropped
-  capabilities, `no-new-privileges`, and the PID limit unless a change has a
-  clearly documented security rationale.
+  capabilities, `no-new-privileges`, and the PID limit unless a change
+  has a clearly documented security rationale.
+
 - Preserve SELinux compatibility for the project bind mount.
-- Do not bake credentials or host-specific paths into the image or scripts.
-- Pin the Node.js, Codex CLI, and SDKMAN versions through their build arguments;
-  treat version and checksum bumps as explicit dependency updates. Use the npm
-  version bundled with the pinned Node.js archive.
-- Keep scripts Bash-based, non-interactive where practical, and strict with
-  `set -euo pipefail`.
-- Quote shell expansions and use long-form flags where clarity matters.
-- Keep changes minimal; avoid adding orchestration or dependencies that this
-  small launcher does not need.
+
+- Do not bake credentials or host-specific paths into the image or
+  scripts.
+
+- Pin the Node.js, Codex CLI, and SDKMAN versions through their build
+  arguments; treat version and checksum bumps as explicit dependency
+  updates. Use the npm version bundled with the pinned Node.js
+  archive.
+
+- Keep scripts Bash-based, non-interactive where practical, and strict
+  with `set -euo pipefail`.
+
+- Quote shell expansions and use long-form flags where clarity
+  matters.
+
+- Keep changes minimal; avoid adding orchestration or dependencies
+  that this small launcher does not need.
+
+- Load the host's YAML configuration from
+  `${XDG_CONFIG_HOME:-$HOME/.config}/codex-sandbox/config.yaml`,
+  overridden by `CODEX_SANDBOX_CONFIG`. Its `workspace` mapping
+  assigns names to host paths.  All normal launches mount every
+  configured project. Reuse those names for matching paths and use
+  basenames for additional paths. Empty-workspace mode bypasses the
+  configuration.
+
+- With no arguments, open Codex's Command Center in the first
+  configured project. Explicit directories or `--` launch Codex
+  directly, forwarding everything after `--`. Start in the first
+  explicit directory or the first configured project. Add other
+  explicit directories through `--add-dir`.
+
+- Keep mount availability separate from conversation write scope. The
+  user supplies the mounts required by resumed conversations. Let
+  Codex use a saved conversation's directory and permissions.
 
 ## Working on changes
 
-- Update `README.org` whenever behavior, prerequisites, CLI syntax, persistence,
-  mounts, or the security boundary changes.
-- Keep exact image-managed tool versions and checksums in `Containerfile`.
-  Do not repeat them in `README.org`; use placeholders in update examples so
-  version-only dependency updates do not require README or PDF changes.
-- Treat `README.org` as the documentation source of truth. After changing it,
-  run `just pdf` and include the refreshed `docs/codex-sandbox.pdf`.
-- Keep this repository's PDF build self-contained and reproducible from
-  repository-owned files.
-- Never print, inspect, copy, or delete the persistent home volume's credentials
-  unless the user explicitly asks. Removing `codex-sandbox-home` is destructive.
-- Do not assume Podman or nested user namespaces are available in the current
-  development environment. Perform static checks when runtime validation is not
-  possible, and state what could not be exercised.
+
+- Update `README.org` whenever behavior, prerequisites, CLI syntax,
+  persistence, mounts, or the security boundary changes.
+
+- Keep exact image-managed tool versions and checksums in
+  `Containerfile`.  Do not repeat them in `README.org`; use
+  placeholders in update examples so version-only dependency updates
+  do not require README or PDF changes.
+
+- Treat `README.org` as the documentation source of truth. After
+  changing it, run `just pdf` and include the refreshed
+  `docs/codex-sandbox.pdf`.
+
+- Keep this repository's PDF build self-contained and reproducible
+  from repository-owned files.
+
+- Never print, inspect, copy, or delete the persistent home volume's
+  credentials unless the user explicitly asks. Removing
+  `codex-sandbox-home` is destructive.
+
+- Do not assume Podman or nested user namespaces are available in the
+  current development environment. Perform static checks when runtime
+  validation is not possible, and state what could not be exercised.
+
 - Do not change unrelated user work in a dirty worktree.
 
 ## Git discipline
 
-- Gitea is the canonical remote. Local `master` tracks `gitea/master`; GitHub is
-  used for pull-request review and GitHub Releases.
-- Use topic branches with a short semantic prefix such as `feat/`, `fix/`, or
-  `chore/`. Pull requests are a discipline rather than an enforced protection,
-  so the owner may occasionally commit directly to `master`.
-- Never create commits. The owner creates signed commits and must retain control
-  of their signatures. When useful, suggest a concise plain-English commit
-  message without a Conventional Commits prefix.
-- Do not merge with GitHub's merge, squash, or rebase buttons. After review, the
-  owner fast-forwards `master` locally with `git merge --ff-only`, then pushes
-  the unchanged signed commits to Gitea and GitHub. GitHub records the pull
-  request as indirectly merged.
-- Releases are started manually through the GitHub `Release` workflow after the
-  intended commit reaches `master`. The owner selects `patch`, `minor`, or
-  `major`; the workflow creates a GitHub tag and release, attaches the tracked
-  PDF from that commit under a versioned filename, and publishes no package or
-  container image.
-- Treat incompatible launcher or sandbox-option changes as major releases,
-  backward-compatible capabilities as minor releases, and fixes or compatible
-  dependency updates as patch releases.
+
+- Gitea is the canonical remote. Local `master` tracks `gitea/master`;
+  GitHub is used for pull-request review and GitHub Releases.
+
+- Use topic branches with a short semantic prefix such as `feat/`,
+  `fix/`, or `chore/`. Pull requests are a discipline rather than an
+  enforced protection, so the owner may occasionally commit directly
+  to `master`.
+
+- Never create commits. The owner creates signed commits and must
+  retain control of their signatures. When useful, suggest a concise
+  plain-English commit message without a Conventional Commits prefix.
+
+- Do not merge with GitHub's merge, squash, or rebase buttons. After
+  review, the owner fast-forwards `master` locally with `git merge
+  --ff-only`, then pushes the unchanged signed commits to Gitea and
+  GitHub. GitHub records the pull request as indirectly merged.
+
+- Releases are started manually through the GitHub `Release` workflow
+  after the intended commit reaches `master`. The owner selects
+  `patch`, `minor`, or `major`; the workflow creates a GitHub tag and
+  release, attaches the tracked PDF from that commit under a versioned
+  filename, and publishes no package or container image.
+
+- Treat incompatible launcher or sandbox-option changes as major
+  releases, backward-compatible capabilities as minor releases, and
+  fixes or compatible dependency updates as patch releases.
+
 - After a GitHub release, the owner fetches its tags from GitHub and pushes all
   local tags to Gitea. Never push, merge, tag, or start a release unless the
   owner explicitly requests that external action.
