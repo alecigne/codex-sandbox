@@ -1,0 +1,4 @@
+default_permissions = "container-workspace"
+
+[permissions.container-workspace]
+extends = ":workspace"

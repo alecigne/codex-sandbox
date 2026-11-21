@@ -10,13 +10,14 @@ The launcher must preserve two isolation layers:
 
 1. Rootless Podman exposes only the selected project at `/workspace` and a
    private persistent container home at `/home/codex`.
-2. Codex keeps its normal Linux `bubblewrap`/seccomp sandbox enabled in
-   `workspace-write` mode with approvals requested on demand.
+2. Codex keeps its normal Linux `bubblewrap`/seccomp sandbox enabled with
+   a profile that extends `:workspace` and approvals requested on demand.
 
-Do not weaken or bypass either layer to make a command work. In particular, do
-not add the host home, SSH configuration, host environment, or Podman socket as
-container mounts, and do not disable the Codex sandbox. If unprivileged user
-namespaces or `bubblewrap` fail, report the host prerequisite instead.
+The bundled execution rules preapprove `git commit` and `git switch` within
+the Podman boundary. Preserve both isolation layers for other commands. Do not
+add the host home, SSH configuration, host environment, or Podman socket as
+container mounts. If unprivileged user namespaces or `bubblewrap` fail, report
+the host prerequisite instead.
 
 ## Repository map
 
@@ -27,6 +28,7 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 - `Justfile` provides common build, validation, launch, and container-shell
   commands.
 - `image/` mirrors the installed paths of repository-managed image files.
+  - `image/etc/codex/config.toml` defines the default Codex permission profile.
   - `image/usr/local/bin/container-entrypoint` overlays the home template,
     seeds SDKMAN into the persistent home volume, and executes the requested
     command.

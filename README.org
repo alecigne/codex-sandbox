@@ -6,7 +6,7 @@ Podman.
 It keeps the container boundary and Codex's own Linux sandbox enabled:
 Podman exposes only explicitly selected working directories, and Codex
 runs generated commands through ~bubblewrap~ and seccomp in
-~workspace-write~ mode.
+its workspace sandbox.
 
 This README is also available [[file:docs/codex-sandbox.pdf][as a PDF]].
 
@@ -667,8 +667,18 @@ The outer Podman container:
 
 Podman's minimal init process runs as PID 1 to forward signals and
 reap orphaned children. Within this boundary, Codex retains its normal
-~bubblewrap~/seccomp sandbox with ~workspace-write~ access and
-approval on demand.
+~bubblewrap~/seccomp sandbox with approvals on demand. The image
+installs its default ~container-workspace~ permission profile in
+~/etc/codex/config.toml~. This profile inherits ~:workspace~, which
+keeps ~.git~ read-only for sandboxed commands.
+
+The bundled rules in ~/etc/codex/rules/git.rules~ preapprove ~git commit~
+and ~git switch~. These commands run outside the Codex sandbox, within
+the Podman container.
+
+Rebuild the image with ~./run.bash --build~ to pick up the bundled
+profile and execution rules. An explicit ~sandbox_mode~ setting or
+~--sandbox~ argument takes precedence over the profile.
 
 If commands fail with a ~bwrap~ or namespace error, do not disable the
 Codex sandbox. The host's rootless Podman configuration must support
@@ -677,10 +687,9 @@ unprivileged user namespaces for both isolation layers to work.
 ** Network boundary
 
 Codex needs network access to communicate with OpenAI, so the outer
-container has Podman's normal outbound network access. Commands
-spawned by Codex remain subject to its ~workspace-write~ network
-restrictions and approval policy. No outer egress allowlist is
-currently configured.
+container has Podman's normal outbound network access. Sandboxed
+commands remain subject to the permission profile's network restrictions
+and approval policy. No outer egress allowlist is currently configured.
 
 * Remove persistent state
 

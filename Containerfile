@@ -222,6 +222,7 @@ RUN export SDKMAN_DIR=/opt/sdkman \
     && chown -R codex:codex /opt/sdkman
 
 COPY image/etc/profile.d/codex-toolchains.sh /etc/profile.d/codex-toolchains.sh
+COPY image/etc/codex/ /etc/codex/
 COPY image/usr/local/share/codex-sandbox/home/ /usr/local/share/codex-sandbox/home/
 COPY image/usr/local/bin/container-entrypoint /usr/local/bin/container-entrypoint
 
