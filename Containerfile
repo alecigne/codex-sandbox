@@ -221,9 +221,9 @@ RUN export SDKMAN_DIR=/opt/sdkman \
     && sed -i 's/^sdkman_healthcheck_enable=.*/sdkman_healthcheck_enable=false/' /opt/sdkman/etc/config \
     && chown -R codex:codex /opt/sdkman
 
-COPY toolchain-profile.sh /etc/profile.d/codex-toolchains.sh
-COPY home/ /usr/local/share/codex-sandbox/home/
-COPY container-entrypoint.bash /usr/local/bin/container-entrypoint
+COPY image/etc/profile.d/codex-toolchains.sh /etc/profile.d/codex-toolchains.sh
+COPY image/usr/local/share/codex-sandbox/home/ /usr/local/share/codex-sandbox/home/
+COPY image/usr/local/bin/container-entrypoint /usr/local/bin/container-entrypoint
 
 RUN chmod 0755 /usr/local/bin/container-entrypoint
 

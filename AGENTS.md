@@ -26,14 +26,16 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
   container.
 - `Justfile` provides common build, validation, launch, and container-shell
   commands.
-- `container-entrypoint.bash` overlays image-managed home files, seeds SDKMAN
-  into the persistent home volume, and then executes the requested command.
-- `home/` is the sparse image-managed container home template. Its global Codex
-  guidance and personal skills are refreshed for every session.
+- `image/` mirrors the installed paths of repository-managed image files.
+  - `image/usr/local/bin/container-entrypoint` overlays the home template,
+    seeds SDKMAN into the persistent home volume, and executes the requested
+    command.
+  - `image/etc/profile.d/codex-toolchains.sh` restores toolchain paths and
+    loads SDKMAN for Bash commands through `BASH_ENV`.
+  - `image/usr/local/share/codex-sandbox/home/` holds the global Codex
+    guidance and personal skills refreshed for every session.
 - `docs/` contains the Pandoc defaults, project-local Typst theme, and tracked
   PDF generated from `README.org`.
-- `toolchain-profile.sh` restores image-managed tool paths and loads SDKMAN for
-  Bash commands through `BASH_ENV`.
 - `README.org` is the user-facing setup, usage, isolation, and cleanup guide.
 
 ## Design constraints
@@ -106,10 +108,8 @@ namespaces or `bubblewrap` fail, report the host prerequisite instead.
 Run the checks relevant to the edited files:
 
 ```bash
-bash -n run.bash container-entrypoint.bash toolchain-profile.sh
-shellcheck run.bash container-entrypoint.bash toolchain-profile.sh
+just check
 podman build --tag codex-sandbox:local --file Containerfile .
-./run.bash --help
 ```
 
 `shellcheck` and Podman may not be installed everywhere; report skipped checks

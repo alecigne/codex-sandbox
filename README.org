@@ -155,7 +155,7 @@ The image is built from ~debian:trixie-slim~ and tagged
 8. Installs the checksum-verified official Typst CLI for the image
    architecture.
 9. Creates a checksum-verified SDKMAN seed for new home volumes.
-10. Copies the repository's custom home and entrypoint into the image.
+10. Copies the files under ~image/~ to their matching paths in the image.
 11. Switches permanently to the unprivileged ~codex~ user.
 
 The resulting container root filesystem is read-only at
@@ -176,8 +176,8 @@ tools are updated by changing their build arguments and checksums.
 
 * Custom home
 
-The repository's sparse ~home/~ directory is the image-managed portion
-of ~/home/codex~.
+The repository's ~image/usr/local/share/codex-sandbox/home/~ directory
+holds the template for the image-managed portion of ~/home/codex~.
 
 During the image build, this tree is copied to
 ~/usr/local/share/codex-sandbox/home~. At every container start, the
@@ -187,14 +187,14 @@ are left untouched.
 
 This separates two kinds of home data:
 
-- Repository-managed configuration comes from ~home/~ and changes
+- Repository-managed configuration comes from the home template and changes
   through an image rebuild.
 
 - Runtime state such as Codex credentials, sessions, user-installed
   tools, and downloaded toolchains remains in the persistent
   ~codex-sandbox-home~ volume.
 
-Removing a path from ~home/~ does not remove a copy already present in
+Removing a path from the template does not remove a copy already present in
 the persistent volume. Deletion requires an explicit migration or
 recreation of the volume.
 
@@ -204,7 +204,7 @@ The custom home provides a natural place for global Codex instructions
 and deliberate personal skills:
 
 #+begin_example
-  home/
+  image/usr/local/share/codex-sandbox/home/
   ├── .agents/
   │   └── skills/
   │       ├── build-silverbullet-wiki/
@@ -223,7 +223,7 @@ and deliberate personal skills:
 This makes ~codex-sandbox~ not only a development environment, but
 also a convenient Git-backed set of instructions for Codex.
 
-The current ~home/.codex/AGENTS.md~ explains the workspace layout and
+The template's ~.codex/AGENTS.md~ explains the workspace layout and
 installed tools to every Codex session and routes polished PDF
 requests to the personal skill. Project-level ~AGENTS.md~ files remain
 scoped to their own selected directories and take precedence where

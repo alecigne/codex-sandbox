@@ -6,8 +6,8 @@ default:
 
 # Run static checks that do not require Podman.
 check:
-    bash -n run.bash container-entrypoint.bash toolchain-profile.sh
-    shellcheck run.bash container-entrypoint.bash toolchain-profile.sh
+    for script in run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh; do bash -n "$script" || exit; done
+    shellcheck run.bash image/usr/local/bin/container-entrypoint image/etc/profile.d/codex-toolchains.sh
     ./run.bash --help >/dev/null
     git diff --check
 
