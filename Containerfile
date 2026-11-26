@@ -6,9 +6,9 @@ ARG NODE_LINUX_AMD64_SHA256=5c063e46bab0fbc1c17cc445d7ff129cbdcd0471be6ed83b6ab8
 ARG NODE_LINUX_ARM64_SHA256=89e1853138db51e8b82d3e98ba9c0d3f2956a28e5e55ea1b7e12d25aae92d5dd
 
 # Codex CLI
-ARG CODEX_VERSION=0.171.0
-ARG CODEX_LINUX_AMD64_SHA256=8391d67757496bfd14893eca6cbf0c96994bf2627566ff1f018f70600c9ef6b3
-ARG CODEX_LINUX_ARM64_SHA256=d8c43bee6cf11b01eb18b95f4d7961092bc40228180808859e70dabb7784c1c9
+ARG CODEX_VERSION=0.172.0
+ARG CODEX_LINUX_AMD64_SHA256=63e3b00065ed7f62166d0522e17f663cb866a31d80d03e63365482ed34a1d991
+ARG CODEX_LINUX_ARM64_SHA256=faf17b8071927f33346a805dc8cb45de4e08c0d75cf0e5e68cecddca28b8861e
 
 # ast-grep
 ARG AST_GREP_VERSION=0.51.3
@@ -18,8 +18,8 @@ ARG AST_GREP_VERSION=0.51.3
 ARG PLAYWRIGHT_VERSION=1.65.1
 
 # uv
-ARG UV_VERSION=0.13.9
-ARG UV_INSTALLER_SHA256=ccc888115ac831bd9c30855c1d4abeae32fce679701d2aac8e72eb0beffb41c2
+ARG UV_VERSION=0.13.10
+ARG UV_INSTALLER_SHA256=51781aafe6950cc659f79873e1bdca55fbb9da6e0ef650bf98093a0f0aaaf453
 
 # Go
 ARG GO_VERSION=1.27.4
@@ -140,7 +140,9 @@ RUN architecture="$(dpkg --print-architecture)" \
     && test "$(codex --no-daemon --version)" = "codex-cli ${CODEX_VERSION}"
 
 # Install uv dynamically for the build architecture from a verified installer.
-RUN curl --fail --show-error --silent --location "https://astral.sh/uv/${UV_VERSION}/install.sh" --output /tmp/install-uv.sh \
+RUN curl --fail --show-error --silent --location \
+        "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-installer.sh" \
+        --output /tmp/install-uv.sh \
     && printf '%s  %s\n' "${UV_INSTALLER_SHA256}" /tmp/install-uv.sh | sha256sum --check --strict - \
     && grep --fixed-strings --line-regexp "APP_VERSION=\"${UV_VERSION}\"" /tmp/install-uv.sh \
     && UV_UNMANAGED_INSTALL=/usr/local/bin sh /tmp/install-uv.sh \

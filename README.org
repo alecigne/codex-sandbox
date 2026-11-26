@@ -534,8 +534,9 @@ architecture-aware installer. To prepare an update:
 
 #+begin_src bash
   UV_VERSION='<version>'
+  uv_releases='https://github.com/astral-sh/uv/releases/download'
   curl --fail --show-error --silent --location \
-    "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+    "${uv_releases}/${UV_VERSION}/uv-installer.sh" \
     --output /tmp/install-uv.sh
   grep '^APP_VERSION=' /tmp/install-uv.sh
   sha256sum /tmp/install-uv.sh
