@@ -357,6 +357,23 @@ installed tools to every Codex session and routes PDF requests to the
 corresponding skill. Project-level ~AGENTS.md~ files remain scoped to
 their own selected directories and take precedence where they apply.
 
+** Container timezone
+
+To set local time inside the container, add the optional ~timezone~
+key at the top level of the launcher's ~config.yaml~.
+
+#+begin_src yaml
+  timezone: Europe/Paris
+#+end_src
+
+Use an IANA timezone name. The launcher validates it against the
+host's timezone database, provided by ~tzdata~ on Debian. The
+container uses its own timezone data. Run ~just build~ once to add it
+to an existing image.
+
+The container defaults to UTC if you omit ~timezone~ or launch with
+~--empty-workspace~, which bypasses the YAML configuration.
+
 ** Skills
 :PROPERTIES:
 :CREATED:  [2026-11-20 Fri 20:44]

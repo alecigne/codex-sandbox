@@ -98,6 +98,9 @@ pair --security-opt no-new-privileges=true
 pair --pids-limit 512
 pair --mount type=volume,source=codex-sandbox-home,target=/home/codex
 pair --tmpfs /workspace:rw,nosuid,nodev,size=1g,mode=1777
+for argument in "${ARGUMENTS[@]}"; do
+  [[ "${argument}" != TZ=* ]] || fail 'unconfigured launch overrides the timezone'
+done
 suffix "${CODEX[@]}" --add-dir /workspace/second
 
 launch "${TEST_ROOT}/second" "${TEST_ROOT}/first"
@@ -206,6 +209,23 @@ pair --workdir /workspace/only
 pair --mount "type=bind,\"source=${TEST_ROOT}/first\",\"target=/workspace/only\",relabel=private"
 pair --mount "type=bind,\"source=${TEST_ROOT}/second\",\"target=/workspace/relative\",relabel=private"
 suffix "${CODEX[@]}" agents
+
+printf '%s\n' 'timezone: Europe/Paris' >>"${CODEX_SANDBOX_CONFIG}"
+launch -- --model example
+pair --env TZ=Europe/Paris
+pair --workdir /workspace/only
+suffix "${CODEX[@]}" --model example
+launch -e
+for argument in "${ARGUMENTS[@]}"; do
+  [[ "${argument}" != TZ=* ]] || fail 'empty launch uses the configured timezone'
+done
+
+for invalid in 'null' '42' '""' '/etc/localtime' 'Europe/../UTC' 'Mars/Olympus' 'zone.tab'; do
+  write_config only "${TEST_ROOT}/first" >"${CODEX_SANDBOX_CONFIG}"
+  printf 'timezone: %s\n' "${invalid}" >>"${CODEX_SANDBOX_CONFIG}"
+  reject
+  [[ $(<"${TEST_ROOT}/error") == *timezone* ]] || fail 'missing timezone configuration error'
+done
 
 # Quoted YAML paths preserve punctuation, Unicode, and newlines without evaluation.
 unusual_path="${TEST_ROOT}/"$'é, "quote"\nline $(not-a-command)\n'

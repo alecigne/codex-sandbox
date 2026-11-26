@@ -46,7 +46,7 @@ RUN groupadd --gid 1000 codex \
     && useradd --uid 1000 --gid codex --shell /bin/bash --create-home codex
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ansible-core \
         ansible-lint \
         ca-certificates \
@@ -60,6 +60,7 @@ RUN apt-get update \
         pandoc \
         ripgrep \
         shellcheck \
+        tzdata \
         unzip \
         xz-utils \
         yamllint \

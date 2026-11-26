@@ -10,6 +10,7 @@ IFS= read -r -d '' SCRIPT_DIR < <(dirname --zero -- "${SCRIPT_PATH}")
 EMPTY_WORKSPACE=false
 CONTAINER_TERM="${TERM:-xterm-256color}"
 CONTAINER_COLORTERM="${COLORTERM:-truecolor}"
+TIMEZONE_ARGUMENTS=()
 DIRECTORIES=()
 WORKSPACE_NAMES=()
 RESOLVED_DIRECTORIES=()
@@ -35,10 +36,12 @@ Usage:
   run.bash --empty-workspace [-- CODEX_ARGUMENTS...]
   run.bash -e [-- CODEX_ARGUMENTS...]
 
-Load the workspace mapping from the YAML configuration at
+Load the workspace mapping and optional timezone from the YAML configuration at
 ${XDG_CONFIG_HOME:-~/.config}/codex-sandbox/config.yaml when configured.
 CODEX_SANDBOX_CONFIG selects another file. Reading the configuration requires
 Python 3 and PyYAML on the host.
+Set timezone to a name such as Europe/Paris. The host's timezone database
+is used to validate the name.
 
 With a configured workspace, run without arguments to open Codex's Command
 Center. Explicit directories or -- start Codex directly. The first explicit
@@ -165,6 +168,7 @@ load_config() {
   # Keep paths lossless across the Python/Bash boundary. Wait for the parser so
   # invalid configuration cannot silently become an empty set of mounts.
   mapfile -d '' -t config_fields < <(python3 - "${config_file}" <<'PY'
+from pathlib import Path
 import re
 import sys
 
@@ -194,12 +198,24 @@ try:
     workspace = config.get("workspace") if isinstance(config, dict) else None
     if not isinstance(workspace, dict) or not workspace:
         raise ValueError("expected a nonempty workspace mapping of names to paths")
+    timezone = config.get("timezone", "")
+    if "timezone" in config:
+        if not isinstance(timezone, str) or not re.fullmatch(
+            r"[A-Za-z0-9_+-]+(?:/[A-Za-z0-9_+-]+)*", timezone
+        ):
+            raise ValueError("timezone must be an IANA name such as Europe/Paris")
+        try:
+            with (Path("/usr/share/zoneinfo") / timezone).open("rb") as zone:
+                if zone.read(4) != b"TZif":
+                    raise ValueError(f"invalid timezone: {timezone!r}")
+        except OSError as error:
+            raise ValueError(f"timezone {timezone!r} unavailable in host timezone data") from error
     for name, path in workspace.items():
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
             raise ValueError(f"invalid workspace name: {name!r}")
         if not isinstance(path, str) or not path or "\0" in path:
             raise ValueError(f"expected a nonempty path string for {name!r}")
-    fields = [field for item in workspace.items() for field in item]
+    fields = [timezone, *(field for item in workspace.items() for field in item)]
     sys.stdout.buffer.write(("\0".join(fields) + "\0").encode("utf-8"))
 except (OSError, UnicodeError, yaml.YAMLError, ValueError) as error:
     sys.exit(f"Invalid configuration {sys.argv[1]}: {error}")
@@ -208,7 +224,10 @@ PY
   if ! wait "$!"; then
     exit 2
   fi
-  for ((field_index = 0; field_index < ${#config_fields[@]}; field_index += 2)); do
+  if [[ -n "${config_fields[0]}" ]]; then
+    TIMEZONE_ARGUMENTS=(--env "TZ=${config_fields[0]}")
+  fi
+  for ((field_index = 1; field_index < ${#config_fields[@]}; field_index += 2)); do
     directory="${config_fields[field_index + 1]}"
     case "${directory}" in
       '~') directory="${HOME}" ;;
@@ -269,6 +288,7 @@ exec podman run --rm --interactive --tty \
   --userns=keep-id \
   --env "TERM=${CONTAINER_TERM}" \
   --env "COLORTERM=${CONTAINER_COLORTERM}" \
+  "${TIMEZONE_ARGUMENTS[@]}" \
   --read-only \
   --shm-size 1g \
   --tmpfs /tmp:rw,nosuid,nodev,size=1g \
